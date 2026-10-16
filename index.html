@@ -62,6 +62,9 @@ code{font:400 .875rem var(--mono)}.katex{font-size:1.1em}.katex-display{margin:8
 .lg{display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:12px;font-size:12px;color:var(--muted)}.lg i{width:12px;height:12px}.lg span:first-child{margin-right:4px}.lg span:last-child{margin-left:4px}
 @media(max-width:560px){.hm{grid-template-columns:repeat(16,minmax(0,1fr))}.hm i:nth-child(-n+70){display:none}}
 [hidden]{display:none!important}
+input[type=checkbox]{width:auto;padding:0;accent-color:var(--primary);flex:none}.chk{flex-direction:row;align-items:center;gap:10px;font-size:15px;font-weight:500;color:var(--ink);cursor:pointer}
+.list li.br{display:flex;gap:12px;align-items:center;font:400 15px/1.4 var(--sans)}.br .chk{flex:1;min-width:0;font-weight:400}.br .chk span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#bdel{background:var(--error);color:var(--paper)}#bdel:disabled{opacity:.4;cursor:default;transform:none}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:9999px;padding:2px;background:var(--paper)}.seg button{padding:4px 12px;border-radius:9999px;font-size:13px;font-weight:500;color:var(--muted);transition:background .2s,color .2s}.seg button[aria-pressed=true]{background:var(--surface);color:var(--ink);box-shadow:0 0 0 1px var(--line)}
 .list li.mr{display:grid;grid-template-columns:minmax(0,1fr) minmax(64px,140px) 56px;gap:16px;align-items:center;font:500 15px/1.4 var(--sans)}.list .mr span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.list .mr b{color:var(--muted);font-weight:500;text-align:right}.list .mr .mb{max-width:none}.list.cl .x{display:none}.more{margin-top:8px;padding:4px 0}
 .fld{display:flex;flex-direction:column;gap:4px}.num{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:6px;background:var(--surface);overflow:hidden}.num:focus-within{outline:2px solid var(--primary);outline-offset:1px}
@@ -238,8 +241,7 @@ const byId=id=>S.cards.find(c=>c.id===id);
 const decks=()=>[...new Set(S.cards.map(c=>c.deck))].sort();
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 function queue(){const n=Date.now(),seenNew=S.reviews.filter(r=>r.new&&sod(r.at)===sod(n)).length,room=Math.max(0,S.set.newPerDay-seenNew);
- const c=S.cards.filter(c=>(!deckF||c.deck===deckF)&&c.box!=='g'&&c.dueAt<=n);
- return shuffle([...c.filter(c=>c.seen),...c.filter(c=>!c.seen).slice(0,room)]).sort((a,b)=>a.box-b.box)}
+ let left=room;return S.cards.filter(c=>(!deckF||c.deck===deckF)&&c.box!=='g'&&c.dueAt<=n&&(c.seen||left-->0))}
 const dayMap=()=>{const m={};S.reviews.forEach(r=>{const d=dn(r.at);m[d]=(m[d]||0)+1});return m};
 function streak(){const m=dayMap(),ks=Object.keys(m).map(Number),today=dn(Date.now());if(!ks.length)return{n:0,left:1,m,frozen:new Set()};
  const first=Math.min(...ks),frozen=new Set();let k=m[today]?today:today-1,n=0,last=null;
@@ -266,7 +268,7 @@ function home(){const resume=S.sess&&S.sess.i<S.sess.ids.length&&(!deckF||S.sess
  const avg=S.reviews.length?S.reviews.reduce((a,r)=>a+r.ms,0)/S.reviews.length:8e3,ds=decks();
  let h1,sub,cta='';
  if(!S.cards.length){h1='Add your first card.';sub='Press N any time to add a card, or import a deck.'}
- else if(n){h1=`${n} card${n>1?'s are':' is'} due.`;sub=`About ${fmtMin(n*avg)}. ${resume?'Your last session is waiting where you left it.':'Lower boxes come first.'}`;cta=`<button class="btn" data-act="start">${resume?'Resume review':'Start review'}</button><span class="lab"><kbd>Space</kbd> to begin</span>`}
+ else if(n){h1=`${n} card${n>1?'s are':' is'} due.`;sub=`About ${fmtMin(n*avg)}. ${resume?'Your last session is waiting where you left it.':'Cards come in deck order.'}`;cta=`<button class="btn" data-act="start">${resume?'Resume review':'Start review'}</button><span class="lab"><kbd>Space</kbd> to begin</span>`}
  else{const nx=S.cards.filter(c=>c.box!=='g'&&c.dueAt>Date.now()).map(c=>c.dueAt).sort((a,b)=>a-b)[0];h1="You're all caught up.";sub=nx?`Next cards are due ${new Date(nx).toLocaleDateString(undefined,{weekday:'long'})}.`:'Every card is graduated. Add more to keep going.'}
  const days=[6,5,4,3,2,1,0].map(i=>{const k=dn(Date.now())-i;return`<i class="${st.m[k]||st.frozen.has(k)?'f':''}"></i>`}).join('');
  const backup=S.cards.length&&Date.now()-S.set.lastBackup>7*DAY?`<div class="panel cta" style="justify-content:space-between"><span class="lab">Your cards live only in this browser. Back them up.</span><button class="ghost" data-act="export">Back up</button></div>`:'';
@@ -274,7 +276,7 @@ function home(){const resume=S.sess&&S.sess.i<S.sess.ids.length&&(!deckF||S.sess
  <div class="row"><div class="panel ringwrap"><svg class="ring" viewBox="0 0 72 72"><circle class="bg" cx="36" cy="36" r="30"/><circle class="fg" cx="36" cy="36" r="30" stroke-dasharray="188.5" stroke-dashoffset="188.5" data-o="${188.5*(1-Math.min(1,done/goal))}"/></svg><div class="stat"><b>${done} / ${goal}</b><span class="lab">Reviewed today</span></div></div>
  <div class="panel stat"><b>${st.n} day${st.n===1?'':'s'}</b><span class="lab">Streak, ${st.left} freeze left this week</span><div class="pips">${days}</div></div></div>
  <div class="panel"><div class="cap"><h3>Your boxes</h3><span class="lab">${S.cards.length} cards</span></div><div class="boxes">${boxesHtml()}</div></div>
- ${backup}<div class="cta"><button class="ghost" data-act="add"><kbd>N</kbd> Quick add</button><button class="ghost" data-act="import">Import cards</button>${S.cards.length?`<button class="ghost" data-act="browse">Edit cards</button>`:''}${ds.length>1?`<select id="deckf" style="width:auto;border-radius:9999px"><option value="">All decks</option>${ds.map(d=>`<option ${d===deckF?'selected':''}>${esc(d)}</option>`).join('')}</select>`:''}</div></div>`}
+ ${backup}<div class="cta"><button class="ghost" data-act="add"><kbd>N</kbd> Quick add</button><button class="ghost" data-act="import">Import cards</button>${S.cards.length?`<button class="ghost" data-act="browse">Manage cards</button>`:''}${ds.length>1?`<select id="deckf" style="width:auto;border-radius:9999px"><option value="">All decks</option>${ds.map(d=>`<option ${d===deckF?'selected':''}>${esc(d)}</option>`).join('')}</select>`:''}</div></div>`}
 const mastery=(en,cls,hid)=>{const n=en.length;return`<ul class="list ${cls}${n>5?' cl':''}"${hid?' hidden':''}>${en.map(([k,[a,b]],i)=>`<li class="mr${i>4?' x':''}"><span title="${esc(k)}">${esc(k)}</span><div class="mb"><i style="transform:scaleX(${a/b})"></i></div><b>${a}/${b}</b></li>`).join('')||'<li class="lab">Nothing to show yet.</li>'}</ul>${n>5?`<button class="txt more" data-act="more" data-n="${n}"${hid?' hidden':''}>Show all ${n}</button>`:''}`};
 const num=(id,lab,min,v,d)=>`<div class="fld"><label for="${id}">${lab}</label><div class="num"><button data-act="step" data-t="${id}" data-d="${-d}" aria-label="Decrease">−</button><input id="${id}" type="number" inputmode="numeric" min="${min}" value="${v}"><button data-act="step" data-t="${id}" data-d="${d}" aria-label="Increase">+</button></div></div>`;
 function stats(){const R=S.reviews,now=Date.now(),r30=R.filter(r=>now-r.at<30*DAY),ret=r30.length?Math.round(r30.filter(r=>r.result==='correct').length/r30.length*100)+'%':'No data yet',tot=R.reduce((a,r)=>a+r.ms,0),g=S.cards.filter(c=>c.box==='g').length;
@@ -300,7 +302,7 @@ function showCard(){const s=S.sess,card=$('#card');if(!card)return;flipped=false
  if(!c){$('#q').innerHTML=`Session complete.<br><span class="lab">${s.ok} of ${s.ids.length} correct. Progress is saved.</span>`;$('#a').innerHTML='';$('#bx').textContent='Done';$('#dk').textContent='';$('#hn').textContent='';$('#fl').innerHTML='<button class="btn s" data-act="exit">Back home</button>';$('#prog').style.transform='scaleX(1)';return}
  $('#q').innerHTML=rt(c.front);$('#a').innerHTML=rt(c.back);$('#bx').textContent='Box '+c.box;$('#dk').textContent=[c.deck,...c.tags].join(' · ');$('#hn').innerHTML=c.hint?'<button class="txt" data-act="hint">Show hint <kbd>H</kbd></button>':'';$('#fl').innerHTML='<kbd>Space</kbd> to flip';drawSmiles();t0=Date.now();const sc=$('.scene');sc.classList.remove('nx');void sc.offsetWidth;sc.classList.add('nx')}
 /* ---- actions ---- */
-function start(){const resume=S.sess&&S.sess.i<S.sess.ids.length&&(!deckF||S.sess.deck===deckF);if(!resume){const q=queue();if(!q.length)return;S.sess={ids:q.map(c=>c.id),i:0,ok:0,deck:deckF}}save('sess');swap('review')}
+function start(){const resume=S.sess&&S.sess.i<S.sess.ids.length&&(!deckF||S.sess.deck===deckF);if(!resume){const q=queue();if(!q.length)return;S.sess={ids:q.map(c=>c.id),i:0,ok:0,o:1,deck:deckF}}save('sess');swap('review')}
 function flip(){const s=S.sess;if(!s||lock||s.i>=s.ids.length)return;flipped=!flipped;$('#card').classList.toggle('flip',flipped);$('#wrong').disabled=$('#right').disabled=!flipped}
 function answer(ok){const s=S.sess,c=s&&byId(s.ids[s.i]);if(!c||!flipped||lock)return;const n=Date.now(),from=c.box,r={id:uid(),cardId:c.id,at:n,result:ok?'correct':'wrong',fromBox:from,ms:Math.min(n-t0,6e4),new:!c.seen,prev:{box:from,dueAt:c.dueAt,lapses:c.lapses,seen:c.seen}};
  Object.assign(c,grade(c,ok,n),{seen:true});r.toBox=c.box;S.reviews.push(r);s.i++;if(ok)s.ok++;save('cards','reviews','sess');lock=1;flipped=false;$('#card').classList.remove('flip');$('#wrong').disabled=$('#right').disabled=true;setTimeout(()=>{lock=0;showCard()},RM?0:230)}
@@ -315,7 +317,11 @@ function saveCard(keep){const f=$('#f').value.trim(),b=$('#b').value.trim();if(!
  if(editing)Object.assign(editing,{front:f,back:b,hint:$('#h').value.trim(),tags,deck:d});else S.cards.push(mk(f,b,$('#h').value.trim(),tags,d));
  save('cards');if(keep){toast('Card added');cardForm(null)}else{close();toast(editing?'Card saved':'Card added')}
  if(view==='review'){const s=S.sess,id=s.ids[s.i],was=flipped;showCard();if(was&&id){flip()}}else render()}
-function browse(){const c=[...S.cards].sort((a,b)=>b.createdAt-a.createdAt);open(`<div class="stack"><h3>Cards</h3><ul class="list" style="max-height:50vh;overflow:auto">${c.map(x=>`<li><span>${esc(x.front.slice(0,60))}</span><button class="ghost" data-act="editid" data-id="${x.id}">Edit</button></li>`).join('')}</ul><button class="txt" data-act="close">Close</button></div>`)}
+let bq='',bd='',bsel=new Set();
+const bList=()=>{const q=bq.toLowerCase();return S.cards.filter(x=>(!bd||x.deck===bd)&&(!q||(x.front+' '+x.back).toLowerCase().includes(q)))};
+function bFoot(){const c=bList(),n=[...bsel].filter(byId).length,b=$('#bdel');if(!b)return;b.disabled=!n;b.textContent=n?`Delete ${n} card${n>1?'s':''}`:'Delete';$('#ba').checked=c.length>0&&c.every(x=>bsel.has(x.id));$('#bn').textContent=`${c.length} of ${S.cards.length} shown`}
+function bRender(){$('#bl').innerHTML=bList().map(x=>`<li class="br"><label class="chk"><input type="checkbox" data-id="${x.id}" ${bsel.has(x.id)?'checked':''}><span>${esc(x.front.slice(0,80))}</span></label><span class="chip">${esc(x.deck)}</span><button class="ghost" data-act="editid" data-id="${x.id}">Edit</button></li>`).join('')||'<li class="lab">No cards match.</li>';bFoot()}
+function browse(){bsel=new Set();bq='';bd='';open(`<div class="stack"><div class="cap"><h3>Manage cards</h3><span class="lab" id="bn"></span></div><div class="cta"><input id="bs" placeholder="Search cards" style="flex:1;min-width:140px"><select id="bdk" style="width:auto"><option value="">All decks</option>${decks().map(d=>`<option>${esc(d)}</option>`).join('')}</select></div><label class="chk"><input type="checkbox" id="ba"> Select all shown</label><ul class="list" id="bl" style="max-height:42vh;overflow:auto"></ul><div class="cta"><button class="btn s" id="bdel" data-act="bdel" disabled>Delete</button><button class="txt" data-act="close">Close</button></div></div>`);bRender()}
 function settings(){const s=S.set;open(`<div class="stack"><h3>Settings</h3>${num('sg','Daily goal (reviews)',1,s.goal,5)}${num('sn','New cards per day',0,s.newPerDay,1)}<label>Theme<select id="st"><option value="">System</option><option value="light" ${s.theme==='light'?'selected':''}>Light paper</option><option value="dark" ${s.theme==='dark'?'selected':''}>Night paper</option></select></label>
  <div class="cta"><button class="ghost" data-act="export">Back up data</button><button class="ghost" data-act="import">Import cards</button></div><div class="lab" id="persist"></div><button class="txt" data-act="close">Done</button></div>`);
  navigator.storage?.persisted?.().then(p=>{const e=$('#persist');if(e)e.textContent=p?'Storage is persistent. The browser will not clear it automatically.':'Storage may be cleared by the browser. Back up regularly.'})}
@@ -345,13 +351,18 @@ function theme(){const t=S.set.theme;t?document.documentElement.dataset.theme=t:
 /* ---- events ---- */
 const A={more:b=>{const u=b.previousElementSibling,c=u.classList.toggle('cl');b.textContent=c?'Show all '+b.dataset.n:'Show fewer'},mseg:b=>{document.querySelectorAll('.seg button').forEach(x=>x.setAttribute('aria-pressed',x===b));['deck','tag'].forEach(k=>document.querySelectorAll('.m-'+k+',.m-'+k+'+.more').forEach(e=>e.hidden=k!==b.dataset.k))},step:b=>{const i=document.getElementById(b.dataset.t);i.value=Math.max(+i.min,(+i.value||0)+ +b.dataset.d);i.dispatchEvent(new Event('change',{bubbles:true}))},go:b=>swap(b.dataset.v),start,exit:()=>swap('home'),flip,right:()=>answer(1),wrong:()=>answer(0),undo,add:()=>cardForm(null),edit:()=>{const c=S.sess&&byId(S.sess.ids[S.sess.i]);if(c)cardForm(c)},editid:b=>cardForm(byId(b.dataset.id)),browse,close,savecard:()=>saveCard(0),saveopen:()=>saveCard(1),
  del:()=>{const c=editing,i=S.cards.indexOf(c);S.trash={c,i};S.cards.splice(i,1);save('cards');close();toast('Card deleted','undodel','Undo');if(view==='review'){showCard()}else render()},
- undodel:()=>{if(S.trash){S.cards.splice(S.trash.i,0,S.trash.c);S.trash=null;save('cards');$('#toast').hidden=true;view==='review'?showCard():render()}},
+ bdel:()=>{const ids=[...bsel].filter(byId);if(!ids.length)return;S.trash=ids.map(id=>{const c=byId(id);return{c,i:S.cards.indexOf(c)}});const set=new Set(ids);S.cards=S.cards.filter(c=>!set.has(c.id));save('cards');bsel=new Set();toast(`${ids.length} card${ids.length>1?'s':''} deleted`,'undodel','Undo');bRender();if(view!=='review')render()},
+ undodel:()=>{if(S.trash){const t=Array.isArray(S.trash)?S.trash:[S.trash];t.sort((a,b)=>a.i-b.i).forEach(({c,i})=>S.cards.splice(Math.min(i,S.cards.length),0,c));S.trash=null;save('cards');$('#toast').hidden=true;view==='review'?showCard():render();if(dlg.open&&$('#bl'))bRender()}},
  hint:()=>{const c=S.sess&&byId(S.sess.ids[S.sess.i]);if(c&&c.hint&&!flipped){$('#hn').innerHTML=rt(c.hint);drawSmiles()}},settings,export:exportDlg,import:importDlg,preview,commit,copy:()=>{const e=$('#ex');e.select();navigator.clipboard?.writeText(e.value).then(()=>toast('Copied'),()=>document.execCommand('copy'))}};
 document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;if(b.tagName==='BUTTON'&&b.closest('#card'))e.stopPropagation();A[b.dataset.act]?.(b)});
-document.addEventListener('change',e=>{const t=e.target;if(t.id==='deckf'){deckF=t.value;render()}
+document.addEventListener('change',e=>{const t=e.target;if(t.dataset.id&&t.closest('#bl')){t.checked?bsel.add(t.dataset.id):bsel.delete(t.dataset.id);bFoot()}
+ else if(t.id==='ba'){bList().forEach(x=>t.checked?bsel.add(x.id):bsel.delete(x.id));bRender()}
+ else if(t.id==='bdk'){bd=t.value;bRender()}
+ else if(t.id==='deckf'){deckF=t.value;render()}
  else if(t.id==='fil'){const f=t.files[0];if(f)f.text().then(x=>{$('#imp').value=x;preview()})}
  else if(['sg','sn','st'].includes(t.id)){S.set.goal=Math.max(1,+$('#sg').value||50);S.set.newPerDay=Math.max(0,+$('#sn').value||0);S.set.theme=$('#st').value;save('set');theme();render()}});
 dlg.addEventListener('close',()=>{if(view!=='review')return;});
+document.addEventListener('input',e=>{if(e.target.id==='bs'){bq=e.target.value;bRender()}});
 document.addEventListener('keydown',e=>{
  if(dlg.open){if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)&&$('#f'))saveCard(0);return}
  if(/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)||e.ctrlKey||e.metaKey||e.altKey)return;
@@ -361,7 +372,7 @@ document.addEventListener('keydown',e=>{
 /* ---- boot ---- */
 (async()=>{try{db=await idb();for(const k of KEYS){const v=await get(k);if(v!==undefined)S[k]=k==='set'?{...S.set,...v}:v}}catch{db=null}
  if(!S.cards.length&&!S.reviews.length){S.cards=seed.map(([f,b,h],i)=>i<8?mk(f,b,h||'',['physics','gravitation'],'Physics'):mk(f,b,h||'',['chemistry'],'Chemistry'));save('cards')}
- theme();try{navigator.storage?.persist?.()}catch{}render();enter($('#app'))})();
+ if(S.sess&&!S.sess.o)S.sess=null;theme();try{navigator.storage?.persist?.()}catch{}render();enter($('#app'))})();
 </script>
 </body>
 </html>
