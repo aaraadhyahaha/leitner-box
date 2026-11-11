@@ -9,7 +9,7 @@
 - [x] T1.6 Import format doc and sample file (wave A)
 - [x] T1.7 Database worker, operations and client
 - [ ] T1.8 App shell, sidebar, import, deck view (wave C)
-- [ ] T1.9 Study view (wave C)
+- [x] T1.9 Study view (wave C)
 - [ ] T1.10 MVP smoke test (orchestrator)
 
 ## Tier 2
@@ -48,3 +48,4 @@
 - 2026-11-11 SMILES SVG size is set by `width`/`height` attributes, not CSS; `hydrateSmiles` is untested in Node (no DOM), to verify in T1.10.
 - 2026-11-11 SQLite WASM runs under Node, so `ops.test.ts` runs for real; worker handlers take `(db, args)` from the init promise.
 - 2026-11-11 An import with a blank default deck and no `deck` field goes to deck `Imported`.
+- 2026-11-11 Study: Space is captured only while a card is shown; a failed page fetch shows an inline warning and studying continues.
