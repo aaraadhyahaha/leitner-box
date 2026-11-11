@@ -22,6 +22,7 @@ export function swManifest() {
       const skip = (p) =>
         p === 'sw.js' ||
         p === 'sw-template.js' ||
+        p.split('/').pop().startsWith('.') || // dotfiles like .nojekyll
         p.endsWith('.map') ||
         p.endsWith('.ttf') ||
         p.endsWith('.woff') ||

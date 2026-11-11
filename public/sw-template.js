@@ -30,7 +30,7 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     (async () => {
       const cache = await caches.open(CACHE);
-      const hit = await cache.match(req, { ignoreSearch: true });
+      const hit = await cache.match(req, { ignoreSearch: true, ignoreVary: true });
       if (hit) return hit;
       try {
         const res = await fetch(req);
@@ -39,7 +39,7 @@ self.addEventListener('fetch', (event) => {
         return res;
       } catch (err) {
         if (req.mode === 'navigate') {
-          const shell = await cache.match('./index.html');
+          const shell = await cache.match('./index.html', { ignoreVary: true });
           if (shell) return shell;
         }
         throw err;

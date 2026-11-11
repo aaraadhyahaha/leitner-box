@@ -28,7 +28,7 @@ function track(reg: ServiceWorkerRegistration): void {
 export function registerServiceWorker(): void {
   if (!('serviceWorker' in navigator)) return;
   navigator.serviceWorker
-    .register('./sw.js')
+    .register(`${import.meta.env.BASE_URL}sw.js`, { scope: import.meta.env.BASE_URL })
     .then((reg) => {
       track(reg);
       document.addEventListener('visibilitychange', () => {

@@ -4,7 +4,7 @@ import { swManifest } from './scripts/sw-manifest.mjs';
 
 export default defineConfig({
   plugins: [svelte(), swManifest()],
-  base: './',
+  base: '/leitner-box/',
   worker: { format: 'es' },
   optimizeDeps: { exclude: ['@sqlite.org/sqlite-wasm'] },
   test: { environment: 'node', include: ['src/**/*.test.ts'] },

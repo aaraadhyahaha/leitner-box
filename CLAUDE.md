@@ -35,7 +35,7 @@ Local-first web app (runs in the browser, works offline) for Leitner-box flashca
 Out of scope: sync, accounts, images, audio, stats dashboards, nested decks.
 
 ## File map
-- Root: `index.html`, `public/` (`manifest.webmanifest`, `icon.svg`, `sw-template.js`), `scripts/sw-manifest.mjs` (Vite plugin writing `dist/sw.js`), `scripts/gen-cards.mjs` (bench JSONL), `package.json`, `vite.config.ts`, `svelte.config.js`, `tsconfig.json`, `.gitignore`
+- Root: `index.html`, `.github/workflows/deploy.yml` (GitHub Pages: check, test, build, deploy on push to main; base `/leitner-box/`), `public/` (`manifest.webmanifest`, `icon.svg`, `sw-template.js`, `.nojekyll`), `scripts/sw-manifest.mjs` (Vite plugin writing `dist/sw.js`), `scripts/gen-cards.mjs` (bench JSONL), `package.json`, `vite.config.ts`, `svelte.config.js`, `tsconfig.json`, `.gitignore`
 - `src/main.ts` (entry, persist()), `src/App.svelte`, `src/vite-env.d.ts`, `src/types/shims.d.ts`
 - `src/lib/db/types.ts`: the shared API contract (PLAN §1.3)
 - `src/lib/db/schema.ts` (SCHEMA_V1), `ops.ts` (migrate, listDecks, runImport, dueCards, answerCard, toCard/CARD_COLS; tested in `ops.test.ts`), `fts.ts` (ftsQuery), `card-ops.ts` (card/deck/batch CRUD, list/count/delete by query, undoReview, exportJsonl), each with tests, `worker.ts` (OPFS SAH pool, serial request chain), `client.ts` (`call(op, args)`)
