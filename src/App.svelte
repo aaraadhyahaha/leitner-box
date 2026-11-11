@@ -2,6 +2,7 @@
   import Sidebar from './components/Sidebar.svelte';
   import Toolbar from './components/Toolbar.svelte';
   import ImportButton from './components/ImportButton.svelte';
+  import ExportButton from './components/ExportButton.svelte';
   import DeckView from './components/DeckView.svelte';
   import StudyView from './components/StudyView.svelte';
   import { deckStore, refreshDecks } from './lib/decks.svelte';
@@ -35,6 +36,9 @@
       {/key}
     {:else}
       <Toolbar title="Leitner Box">
+        {#if deckStore.decks.length > 0}
+          <ExportButton />
+        {/if}
         <ImportButton />
       </Toolbar>
       <div class="main-scroller">

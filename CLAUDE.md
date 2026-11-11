@@ -43,7 +43,7 @@ Out of scope: sync, accounts, images, audio, stats dashboards, nested decks.
 - `src/lib/leitner.ts` (intervals, dayNumber, review), `src/lib/session.ts` (StudySession queue), `src/lib/import-parse.ts` (validate, cardHash, streaming readCards), each with `*.test.ts`
 - `src/lib/render/`: `tokenize.ts`, `render.ts` (KaTeX + mhchem, LRU cache), `smiles.ts` (lazy smiles-drawer), `RichText.svelte`, with tests
 - `src/lib/router.svelte.ts` (hash routes, `go`; tested), `src/lib/decks.svelte.ts` (`deckStore`, `refreshDecks`)
-- `src/components/Alert.svelte` (dialog, Cancel default), `Toolbar.svelte`, `Sidebar.svelte` (listbox), `ImportButton.svelte`, `DeckView.svelte`, `StudyView.svelte`, `Sheet.svelte` (dialog, data-autofocus), `Segmented.svelte` (radiogroup), `SearchField.svelte` (debounced, focus())
+- `src/components/Alert.svelte` (dialog, Cancel default), `Toolbar.svelte`, `Sidebar.svelte` (listbox), `ImportButton.svelte`, `DeckView.svelte`, `StudyView.svelte`, `Sheet.svelte` (dialog, data-autofocus), `Segmented.svelte` (radiogroup), `SearchField.svelte` (debounced, focus()), `ExportButton.svelte` (deckId or all)
 - `docs/IMPORT_FORMAT.md` (format + AI prompt), `fixtures/sample.jsonl` (10 valid, 1 dup, 1 error)
 
 ## Performance (must handle 100k+ cards)
