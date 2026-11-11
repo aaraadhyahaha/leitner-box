@@ -1,6 +1,6 @@
-# UI Specification (Tier 1)
+# UI Specification
 
-macOS HIG applied to a web app. 1 pt = 1 CSS px. Every value below becomes a custom property in `src/styles/tokens.css`; components use tokens only. Tier 2 screens are added in T2.0.
+macOS HIG applied to a web app. 1 pt = 1 CSS px. Every value below becomes a custom property in `src/styles/tokens.css`; components use tokens only. Tier 2 components and screens are in §7; the audit checklist is in §8.
 
 ## 1. Type
 
@@ -102,3 +102,30 @@ Dark values apply under `@media (prefers-color-scheme: dark)`. `--shadow-sheet` 
 Card content is selectable. A render warning is `--orange` text with a dotted underline and the error in its tooltip. A SMILES drawing sits on its own line, 240 × 180, with its caption below in `--text-callout`, `--label-secondary`.
 
 **Alert.** A centred `<dialog>`, width `--alert-width`, background `--bg-sheet`, radius `--radius-sheet`, `--shadow-sheet`, padding `--s5`, backdrop `--backdrop`. Title in `--text-title3` at weight 600, centred; message in `--text-callout`, centred. Buttons are full width and stacked, the default button on top. With a Cancel button, Cancel is the default (focused, Enter); a destructive button is `.btn-destructive` and never focused on open. Esc cancels. It fades in over `--dur-fast`.
+
+## 7. Tier 2 components and screens
+
+**7.1 Tokens.** `--sheet-width: 480px`, `--sheet-width-wide: 720px`, `--sheet-max-height: 80vh`, `--filter-bar-height: 36px`, `--search-width: 200px`, `--textarea-min: 96px`, `--selection: var(--accent)`, `--on-selection: var(--on-accent)`. Under `prefers-contrast: more` nothing new.
+
+**7.2 Base classes.**
+- `.btn-icon`: `--control-height` square, no border or background until hover (`--fill-hover`), `--icon` icon, always with `aria-label` and `title`.
+- `.field` (input, textarea, select): height `--control-height` (textarea min `--textarea-min`, vertical resize only), padding `0 --s2` (textarea `--s2`), radius `--radius-control`, background `--bg-control`, border `--hairline solid --control-border`, `--text-body`; selectable text. `.field-label`: `--text-callout`, `--label-secondary`, `--s1` above its field. `.field-error`: `--text-callout`, `--red`.
+- `.list-row`: `--row-height`, padding `0 --s3`, `--s3` column gap, bottom hairline `--separator`. Hover `--fill-hover`. Selected: `--fill-selected`; when the list has focus, `--selection` background with `--on-selection` text (all columns).
+- `.badge`: `--text-subhead`, padding `0 --s1`, radius `--radius-row`, `--fill-selected` background, `--label-secondary`.
+
+**7.3 Deck view (replaces the Tier 1 deck view).** Toolbar: deck name, "N cards · D due"; then search field (`--search-width`), icon buttons New Card, Rename Deck, Export Deck, Delete Deck, then "Import…", then a `.btn-primary` "Study". Filter bar: height `--filter-bar-height`, padding `0 --s4`, bottom border `--separator`; left, a segmented control "All n, Box 1 n … Box 5 n"; right, status text in `--text-callout`, `--label-secondary` ("N matching"), replaced while rows are selected by "K selected", "Select All N Matching" and "Delete…". The card list fills the rest: `.list-row` with front (flex 1), back (flex 1, `--label-secondary`), "Box n" (`--text-footnote`, fixed width). Empty states: "No Cards" / "Import a file or add a card."; "No Results" when a search or filter is active. Keys: `/` search, Enter study (outside the list) or edit (one row selected), `N` new card, Up/Down, Shift+Up/Down, Ctrl/⌘+A, Delete, Esc.
+
+**7.4 Segmented control and search field.** Segmented: height `--control-height`, radius `--radius-control`, background `--fill-hover`; the selected segment is `--bg-control` with a `--control-border` hairline; `--text-body`, counts in `--label-secondary` with tabular numbers. Search field: `.field` with a leading 16 px `Search` icon in `--label-secondary` and a trailing clear button.
+
+**7.5 Sidebar and Imports.** The "Decks" header has a trailing `.btn-icon` "New Deck". Below the decks, a "Library" header and an "Imports" row (icon plus label, same row metrics). Imports view: toolbar "Imports" / "N imports", `ExportButton` for all decks; `.list-row` with source name (flex 1), deck name or "N decks", "N cards" (tabular), date (`--label-secondary`, locale short date), trailing delete icon button. Empty state "No Imports".
+
+**7.6 Sheet and import sheet.** Sheet: centred `<dialog>`, width `--sheet-width` (wide: `--sheet-width-wide`), max height `--sheet-max-height`, background `--bg-sheet`, radius `--radius-sheet`, `--shadow-sheet`, backdrop `--backdrop`. Title `--text-headline`, padding `--s4 --s5`; body padding `0 --s5`, scrolls; footer padding `--s4 --s5`, buttons right-aligned `--s2` apart, default button (`.btn-primary`) rightmost, Cancel to its left. Fade and 8 px rise over `--dur-sheet`. Import sheet body, top to bottom with `--s4` gaps: source segmented control; file button and name, or textarea in `--font-mono`; default deck field; then the preview: three count cells like the Tier 1 box cells (New in `--label`, Duplicates in `--label-secondary`, Errors in `--red` when above 0); the deck table; the error list and warning list, each max 120 px high and scrolling, `--text-callout`, warnings in `--orange`. While previewing, the counts show "…".
+
+**7.7 Card editor and deck name sheets.** Card editor: wide sheet, two equal columns `--s5` apart. Left: Deck, Front, Back, Tags fields with labels. Right: "Preview" label, then front and back in `--text-card` separated by a hairline, in a `--bg-content` box with radius `--radius-control`, padding `--s4`, scrolling. Deck name sheet: regular sheet with one field.
+
+**7.8 Alerts for destructive actions.** Title is a question naming the object and count ("Delete 12 Cards?"); message states the consequence and "This can't be undone."; buttons "Cancel" (default, focused) and "Delete" (`.btn-destructive`).
+
+**7.9 Study additions.** Toolbar "Undo" button before "Done"; disabled when there is nothing to undo.
+
+## 8. Audit checklist (used by T2.9)
+Per screen: only tokens, no raw colours or sizes; type scale matches; 4 pt grid; controls at least 28 px, answer buttons 44 px; no gradients, glows, emoji; shadow only on alerts and sheets; light and dark both legible; increased contrast raises separators and labels; reduced motion removes all transitions; every control reachable by Tab in a sensible order; visible focus ring everywhere; Esc closes sheets and alerts; Cancel is the default in every destructive alert and Delete is never focused; every list has an empty state; no page scroll, no header or footer; shortcuts do not shadow browser shortcuts; text truncates with an ellipsis and has a `title`.

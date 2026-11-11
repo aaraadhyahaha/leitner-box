@@ -13,14 +13,17 @@
 - [ ] T1.10 MVP smoke test (orchestrator): build OK, 81 tests pass; headless Firefox renders the shell. Interactive pass (import, study, persistence, dark mode, Chromium) still to do; no Chromium on this machine.
 
 ## Tier 2
-- [ ] T2.0 Extend UI.md
-- [ ] T2.1 Card list, search, box filter
-- [ ] T2.2 Bulk delete
-- [ ] T2.3 Import preview sheet
-- [ ] T2.4 Deck and card editor
-- [ ] T2.5 Undo review
-- [ ] T2.6 Export
-- [ ] T2.7 PWA and offline
+Waves: D = T2.B, T2.C in parallel. E = T2.1, T2.3, T2.5, T2.6, T2.7 in parallel. F = T2.2. G = T2.4. Then T2.8, T2.9.
+- [x] T2.A Extend UI.md (§7 screens, §8 audit checklist)
+- [ ] T2.B API contract and DB ops (wave D)
+- [ ] T2.C UI primitives: tokens, Sheet, Segmented, SearchField (wave D)
+- [ ] T2.1 Card list, search, box filter (wave E)
+- [ ] T2.2 Bulk delete and Imports (wave F)
+- [ ] T2.3 Import preview sheet (wave E)
+- [ ] T2.4 Card and deck editor (wave G)
+- [ ] T2.5 Undo last review (wave E)
+- [ ] T2.6 Export (wave E)
+- [ ] T2.7 PWA and offline (wave E)
 - [ ] T2.8 100k performance check
 - [ ] T2.9 HIG audit
 
@@ -51,3 +54,14 @@
 - 2026-11-11 Study: Space is captured only while a card is shown; a failed page fetch shows an inline warning and studying continues.
 - 2026-11-11 Sidebar is a listbox with one tab stop; row clicks are handled on the listbox (per-option handlers trip svelte a11y warnings).
 - 2026-11-11 svelte-check scans ~4.6k files because `@lucide/svelte` ships one .svelte file per icon; acceptable for now.
+- 2026-11-11 Tier 2: all worker API changes are in T2.B; additive except `ImportResult` (gains `decks[].isNew` and `sample`). No schema change.
+- 2026-11-11 Tier 2 DB ops live in `card-ops.ts`; `ops.ts` only exports helpers and extends `runImport`.
+- 2026-11-11 Import warnings are computed on the main thread from a 20-card `sample`; KaTeX stays out of the worker.
+- 2026-11-11 The "Imports tab" is a sidebar row opening `#/imports`, not a per-deck tab, because a batch can span decks.
+- 2026-11-11 The box-count strip is the box filter (segmented "All / Box 1 to 5" with counts); Study moves to the deck toolbar.
+- 2026-11-11 Card list paging is forward-only keyset; loaded rows stay in memory, only visible rows are in the DOM.
+- 2026-11-11 `CardQuery` has no `batchId`.
+- 2026-11-11 Undo keys are Ctrl/⌘+Z and U (replaces "U undo" above); undo is one level deep.
+- 2026-11-11 PWA uses a hand-written service worker built by a Vite plugin; `vite-plugin-pwa` dropped (Vite 8 peer risk, no new dependency).
+- 2026-11-11 Deck create/rename ship in T2.4 with the card editor.
+- 2026-11-11 Chromium is not installed; T1.10, T2.7, T2.8 and T2.9 need it, otherwise they run in Firefox only.

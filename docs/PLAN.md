@@ -17,7 +17,7 @@ Tier 1 is the MVP. Tier 2 follows in the listed order. Each card goes to one Opu
 
 - Runtime: `@sqlite.org/sqlite-wasm`, `katex`, `smiles-drawer`, `@lucide/svelte`, `@fontsource-variable/inter`
 - Dev: `vite`, `@sveltejs/vite-plugin-svelte`, `svelte`, `typescript`, `svelte-check`, `vitest`
-- Tier 2 only: `vite-plugin-pwa` (T2.7)
+- Tier 2 adds no dependencies (T2.7 hand-writes the service worker).
 
 ### 1.2 File map (Tier 1)
 
@@ -33,7 +33,21 @@ src/lib/render/tokenize.ts  render.ts  smiles.ts  RichText.svelte  (+ *.test.ts)
 src/components/Alert.svelte  Toolbar.svelte  Sidebar.svelte  ImportButton.svelte  DeckView.svelte  StudyView.svelte
 ```
 
-### 1.3 `src/lib/db/types.ts` (verbatim; the only shared contract between UI and worker)
+Tier 2 adds:
+
+```
+src/lib/db/fts.ts  card-ops.ts  (+ *.test.ts)                                   T2.B
+src/components/Sheet.svelte  Segmented.svelte  SearchField.svelte               T2.C
+src/components/VirtualList.svelte  CardList.svelte                              T2.1
+src/lib/selection.svelte.ts (+ test)  src/components/ImportsView.svelte         T2.2
+src/components/ImportSheet.svelte  src/lib/render/warnings.ts (+ test)          T2.3
+src/components/CardEditorSheet.svelte  DeckNameSheet.svelte                     T2.4
+src/components/ExportButton.svelte                                              T2.6
+public/manifest.webmanifest  icon.svg  sw-template.js                           T2.7
+scripts/gen-cards.mjs  src/lib/bench.ts                                         T2.8
+```
+
+### 1.3 `src/lib/db/types.ts` (verbatim as of Tier 1; T2.B extends it; the only shared contract between UI and worker)
 
 ```ts
 export type Box = 1 | 2 | 3 | 4 | 5;
@@ -300,30 +314,242 @@ Files: `src/components/StudyView.svelte` (replaces the stub).
 ### T1.10 MVP smoke test · orchestrator, no executor
 `npm run build`, then `npm run preview` and in Chromium: import `fixtures/sample.jsonl` (expect 10 added, 1 duplicate, 1 error); import it again (0 added); study the deck with the keyboard only, answer one card wrong and see it return; check math, mhchem and SMILES render; reload and confirm the data persisted; toggle dark mode. Repeat the import and one study pass in Firefox. Fix through small follow-up cards.
 
-## 3. Tier 2 cards (in this order; one at a time unless marked)
+## 3. Tier 2 cards
 
-Each card is expanded to T1 detail (props, SQL, tests) by the orchestrator just before dispatch; the API additions below are already fixed. Every card that adds an op edits `types.ts`, `ops.ts`, `ops.test.ts` and `worker.ts`.
+Feature cards T2.1 to T2.9 follow the Tier 2 feature order. T2.B holds every worker API change and T2.C the shared UI primitives, so the feature cards never edit `types.ts`, `worker.ts`, `tokens.css` or `base.css`. No schema change.
 
-- **T2.0 Extend `docs/UI.md`** (orchestrator): card list, selection, sheets, editor, batches. No code.
-- **T2.1 Card list, search, box filter.** Files: `src/components/VirtualList.svelte`, `CardList.svelte`, `SearchField.svelte`, `DeckView.svelte`. API:
+### Order and parallelism
+
+```
+T2.A (done, orchestrator)
+wave D  parallel:  T2.B  T2.C
+wave E  parallel:  T2.1  T2.3  T2.5  T2.6  T2.7
+wave F  alone:     T2.2            (after T2.1 and T2.6)
+wave G  alone:     T2.4            (after T2.2)
+then    alone:     T2.8, then T2.9 (orchestrator)
+```
+Cards in one wave touch disjoint files. After each wave the orchestrator runs `npm run test && npm run check`, commits per card, ticks STATUS and updates the CLAUDE.md file map.
+
+### T2.A Extend `docs/UI.md` · orchestrator · done
+UI.md §7 (Tier 2 screens) and §8 (audit checklist).
+
+### T2.B API contract and DB ops · wave D · needs §0, §1.3 to §1.6
+Files: `src/lib/db/types.ts`, `ops.ts`, `ops.test.ts`, `worker.ts`, new `src/lib/db/fts.ts`, `fts.test.ts`, `card-ops.ts`, `card-ops.test.ts`.
+
+`types.ts`: change `ImportResult.decks` and add `sample`; add the rest verbatim.
+```ts
+export interface ImportSample { line: number; front: string; back: string }
+// in ImportResult:
+//   decks: { name: string; added: number; isNew: boolean }[];
+//   sample: ImportSample[];            // the first 20 added cards
+export interface CardQuery { deckId: number; search: string; box: Box | null }
+export interface CardPage { cards: Card[]; next: DueCursor | null }  // next is null on the last page
+export type CardSelection = { ids: number[] } | { query: CardQuery; exceptIds: number[] };
+export interface CardInput { deckId: number; front: string; back: string; tags: string[] }
+export interface BatchSummary {
+  id: number; source: string; createdAt: number;
+  cardCount: number;                   // cards still alive
+  deckCount: number; deckName: string; // deckName is the alphabetically first deck
+}
+// added to Api:
+'card.list':    { req: { query: CardQuery; after: DueCursor | null; limit: number }; res: CardPage };
+'card.count':   { req: CardQuery; res: number };
+'card.delete':  { req: CardSelection; res: { deleted: number } };
+'card.create':  { req: CardInput; res: Card };
+'card.update':  { req: CardInput & { id: number }; res: Card };
+'deck.create':  { req: { name: string }; res: { id: number } };
+'deck.rename':  { req: { id: number; name: string }; res: null };
+'deck.delete':  { req: { id: number }; res: { deleted: number } };
+'batch.list':   { req: null; res: BatchSummary[] };
+'batch.delete': { req: { id: number }; res: { deleted: number } };
+'study.undo':   { req: { reviewId: number }; res: Card };
+'export.jsonl': { req: { deckId: number | null }; res: Blob };
+```
+
+`ops.ts` (small edits only):
+- Export `num` and `splitTags`. Add and export `CARD_COLS = 'id, deck_id, batch_id, front, back, tags, box, due_day'` and `toCard(row: SqlValue[]): Card`; `dueCards` uses them.
+- `runImport`: in `resolveDeck`, read `db.changes() > 0` right after `insDeck.step()` and keep it as `isNew` on the map entry; return it in `decks`. Push `{ line: item.line, front, back }` to `sample` for the first 20 added cards; return `sample`.
+
+`fts.ts`: `export function ftsQuery(text: string): string | null`. NFC-normalise, split on whitespace, remove every `"`, drop terms without a letter or digit (`/[\p{L}\p{N}]/u`), keep the first 8, map each to `"term"*`, join with a space. No terms gives `null`.
+
+`card-ops.ts` (`db: Database` first, like `ops.ts`):
+```ts
+export function listCards(db, q: CardQuery, after: DueCursor | null, limit: number): CardPage;
+export function countCards(db, q: CardQuery): number;
+export function deleteCards(db, sel: CardSelection): number;
+export function createCard(db, input: CardInput, now: number, today: number): Card;
+export function updateCard(db, input: CardInput & { id: number }, now: number): Card;
+export function createDeck(db, name: string, now: number): number;
+export function renameDeck(db, id: number, name: string): void;
+export function deleteDeck(db, id: number): number;          // returns cards deleted
+export function listBatches(db): BatchSummary[];
+export function deleteBatch(db, id: number): number;
+export function undoReview(db, reviewId: number): Card;
+export function exportJsonl(db, deckId: number | null): Blob;
+```
+- A private `where(q)` builds the clause and binds once for list, count and delete. `fts = ftsQuery(q.search)`.
+  - No `fts`: `FROM cards c WHERE c.deck_id = ? [AND c.box = ?]`; list adds `[AND (c.due_day, c.id) > (?, ?)] ORDER BY c.due_day, c.id LIMIT ?`.
+  - With `fts`: `FROM cards_fts JOIN cards c ON c.id = cards_fts.rowid WHERE cards_fts MATCH ? AND c.deck_id = ? [AND c.box = ?]`; list adds `[AND c.id > ?] ORDER BY c.id LIMIT ?` (the cursor's `dueDay` is ignored).
+  - `next` is the last card's `{ dueDay, id }` when `cards.length === limit`, else `null`.
+- `deleteCards`, in `db.transaction`: ids form is `DELETE FROM cards WHERE id IN (SELECT value FROM json_each(?))` bound to `JSON.stringify(ids)`; query form is `DELETE FROM cards WHERE id IN (SELECT c.id <where>) AND id NOT IN (SELECT value FROM json_each(?))`. Read `db.changes()` straight after, then run `DELETE FROM batches WHERE NOT EXISTS (SELECT 1 FROM cards WHERE batch_id = batches.id)`.
+- `createCard` / `updateCard`: run `validateCard({ front, back, tags })` from `import-parse.ts` and throw `new Error(message)` on failure; unknown deck throws `Deck not found`; unknown card throws `Card not found`; if `SELECT 1 FROM cards WHERE deck_id = ? AND hash = ? AND id <> ?` finds a row throw `Duplicate card`. Create inserts box 1, `due_day = today`, `batch_id NULL`. Update sets `deck_id, front, back, tags, hash, updated_at` and leaves box and due day alone. Both return the row through `toCard`.
+- `createDeck` / `renameDeck`: trim; empty throws `Deck name is empty`; another deck with that name (NOCASE) throws `Deck already exists`; a case-only rename of the same deck is allowed.
+- `deleteDeck`, in a transaction: `DELETE FROM cards WHERE deck_id = ?` (take `changes()`), delete the deck, run the empty-batch cleanup.
+- `listBatches`: `SELECT b.id, b.source, b.created_at, COUNT(c.id), COUNT(DISTINCT c.deck_id), MIN(d.name) FROM batches b JOIN cards c ON c.batch_id = b.id JOIN decks d ON d.id = c.deck_id GROUP BY b.id ORDER BY b.id DESC`.
+- `deleteBatch`, in a transaction: `DELETE FROM cards WHERE batch_id = ?`, then the batch row.
+- `undoReview`, in a transaction: read the review (`Review not found`); if a review with a larger id exists for that card throw `Cannot undo`; set the card's `box = prev_box, due_day = prev_due_day`; delete the review; return the card.
+- `exportJsonl`: page by `c.id > ? ORDER BY c.id LIMIT 5000` joined to `decks` (optionally `c.deck_id = ?`); each row is `JSON.stringify({ deck, front, back, tags }) + '\n'` with `tags` an array; return `new Blob(parts, { type: 'application/x-ndjson' })`.
+
+`worker.ts`: one handler per new op, same style as the existing four; `now` is `Date.now()`, `today` is `today()`. Handlers that return a count wrap it as `{ deleted }`; `deck.create` returns `{ id }`; `deck.rename` returns `null`.
+
+Tests. `fts.test.ts`: quoting, prefix star, punctuation-only gives null, 8-term cap. `ops.test.ts`: `isNew` true on first import and false on the second; `sample` has at most 20 entries with line numbers. `card-ops.test.ts` (same in-memory setup as `ops.test.ts`): list pages through 450 cards in pages of 200 with no repeats and `next` null at the end; box filter; search by prefix and by two terms; count equals listed total for each query shape; delete by ids and by query with `exceptIds`, and an emptied batch disappears from `listBatches`; create/update happy path, `Duplicate card`, `Missing front`, moving a card to another deck; deck create/rename errors; `deleteDeck` removes its cards and FTS rows (`MATCH` finds nothing); `deleteBatch`; `undoReview` restores box and due day and removes the review, and `Cannot undo` for an older review; export of 3 decks re-imported into a fresh DB gives the same `(deck, front, back, tags)` set, and re-imported into the same DB adds 0.
+- Check: `npx vitest run src/lib/db && npm run check`
+
+### T2.C UI primitives · wave D · needs §0, all of `docs/UI.md`
+Files: `src/styles/tokens.css`, `src/styles/base.css`, new `src/components/Sheet.svelte`, `Segmented.svelte`, `SearchField.svelte`.
+- `tokens.css`: the UI.md §7.1 tokens. `base.css`: the UI.md §7.2 classes (`.btn-icon`, `.field`, `.field-label`, `.field-error`, `.list-row`, `.badge`).
+- `Sheet.svelte`, a native `<dialog>` with `showModal()`, modelled on `Alert.svelte` (`margin: auto`, sync `open` on `cancel` and `close`):
   ```ts
-  export interface CardQuery { deckId: number; search: string; box: Box | null; batchId: number | null }
-  'card.list':  { req: { query: CardQuery; after: DueCursor | null; limit: number }; res: { cards: Card[]; next: DueCursor | null } };
-  'card.count': { req: CardQuery; res: number };
+  let { open = $bindable(false), title, wide = false, onclose, children, footer }: {
+    open?: boolean; title: string; wide?: boolean; onclose?: () => void;
+    children: Snippet; footer?: Snippet } = $props();
   ```
-  Order is `(due_day, id)` through `cards_deck_due` or `cards_deck_box`; with a search it is by `id` through `cards_fts MATCH` (the cursor's `dueDay` is ignored). The user's text is turned into quoted prefix terms. Fixed-height rows showing plain source text, pages of 200, only visible rows in the DOM. `/` focuses search. Check: `npx vitest run src/lib/db/ops.test.ts && npm run check`.
-- **T2.2 Bulk delete.** Files: `src/lib/selection.svelte.ts` (+ test), `CardList.svelte`, `BatchesSheet.svelte`, `Sidebar.svelte`. Selection is `{ mode: 'ids'; ids: Set<number> } | { mode: 'all'; except: Set<number> }` with click, Ctrl/⌘-click, Shift-click range and "Select All Matching". API:
+  Title row, scrolling body, footer row with buttons right-aligned. Esc closes and calls `onclose`. On open, focus the first element with `[data-autofocus]`, else the dialog.
+- `Segmented.svelte`:
   ```ts
-  'card.delete':  { req: { ids: number[] } | { query: CardQuery; exceptIds: number[] }; res: { deleted: number } };
-  'batch.list':   { req: null; res: { id: number; source: string; createdAt: number; cardCount: number }[] }; // live count
-  'batch.delete': { req: { id: number }; res: { deleted: number } };
-  'deck.delete':  { req: { id: number }; res: { deleted: number } };
+  let { value = $bindable(), options, label }: {
+    value: string; options: { value: string; label: string; count?: number }[]; label: string } = $props();
   ```
-  Each runs in one transaction and each is confirmed with `Alert` (Cancel default). Check: `npx vitest run src/lib/selection.test.ts src/lib/db/ops.test.ts && npm run check`.
-- **T2.3 Import preview sheet.** Files: `src/components/Sheet.svelte`, `ImportSheet.svelte`, `ImportButton.svelte`. No new op: run `import.run` with `commit: false`, show valid, duplicate and error counts with line numbers and the per-deck breakdown, then run it again with `commit: true`. Pasted text is wrapped as `new File([text], 'pasted.jsonl')` on the main thread. Check: `npm run check`.
-- **T2.4 Deck and card editor.** Files: `CardEditorSheet.svelte`, `DeckNameSheet.svelte`, `Sidebar.svelte`, `CardList.svelte`. API: `'deck.create': { req: { name: string }; res: { id: number } }`, `'deck.rename': { req: { id: number; name: string }; res: null }`, `'card.create': { req: { deckId: number; front: string; back: string; tags: string[] }; res: { id: number } }`, `'card.update': { req: { id: number; front: string; back: string; tags: string[] }; res: null }`. A duplicate rejects with `Duplicate card`. Live `RichText` preview; Ctrl/⌘+Enter saves; `N` opens a new card when no field has focus. Check: `npx vitest run src/lib/db/ops.test.ts && npm run check`.
-- **T2.5 Undo review.** Files: `session.ts` (+ test), `StudyView.svelte`. API: `'study.undo': { req: { reviewId: number }; res: Card }` restores `prev_box` and `prev_due_day` and deletes the review row. `StudySession.undo(): { card: T; persisted: boolean } | null` restores the queue from a one-step snapshot. Key `U`. Check: `npx vitest run src/lib/session.test.ts src/lib/db/ops.test.ts && npm run check`.
-- **T2.6 Export.** Files: `ExportButton.svelte`. API: `'export.jsonl': { req: { deckId: number | null }; res: Blob }`, built in the worker in chunks, one §1.6 object per line with `deck` always set and `tags` as an array; the main thread saves it with an `<a download>`. Test: export then import into an empty DB gives the same cards; importing into the same DB adds 0. Check: `npx vitest run src/lib/db/ops.test.ts && npm run check`.
-- **T2.7 PWA and offline.** Files: `vite.config.ts`, `public/icon.svg`, `public/icon-192.png`, `public/icon-512.png`, `index.html`, `src/main.ts`. `vite-plugin-pwa` with `generateSW`, precaching JS, CSS, WASM and fonts. Check: `npm run build`, then the orchestrator loads the preview offline.
-- **T2.8 100k performance check.** Files: `scripts/gen-cards.mjs` (`node scripts/gen-cards.mjs 100000 > /tmp/cards.jsonl`, with math and SMILES mixed in), `src/lib/bench.ts` (dev-only `window.__bench(file)` that times import, `deck.list`, paged `card.list` with and without search, and `study.due`). The orchestrator runs it in Chromium against the CLAUDE.md targets and issues fix cards for any miss (first candidates: drop the FTS triggers during import and rebuild the index once; a per-deck counts table).
-- **T2.9 HIG audit.** The orchestrator audits every screen against `docs/UI.md` and the CLAUDE.md UI section (light, dark, increased contrast, reduced motion, keyboard-only, empty states, alert defaults), lists the findings in `STATUS.md`, and issues fix cards. Ends with `npm run test && npm run check && npm run build`.
+  `role="radiogroup"` with `aria-label={label}`, one tab stop, Left/Right move and select, `count` shown after the label in `--label-secondary`.
+- `SearchField.svelte`:
+  ```ts
+  let { value = $bindable(''), placeholder = 'Search', delay = 150 }: {
+    value?: string; placeholder?: string; delay?: number } = $props();
+  export function focus(): void;
+  ```
+  `<input type="search">` with a Lucide `Search` icon and a clear button (Lucide `X`, shown when non-empty). `value` updates `delay` ms after typing stops, at once on clear. Esc clears when non-empty, otherwise blurs.
+- Check: `npm run check`
+
+### T2.1 Card list, search, box filter · wave E · needs §0, T2.B types, T2.C props, UI.md §7.3
+Files: new `src/components/VirtualList.svelte`, `CardList.svelte`; rewrite `DeckView.svelte`.
+- `VirtualList.svelte` (`<script lang="ts" generics="T">`):
+  ```ts
+  let { items, rowHeight = 28, overscan = 10, row, onnearend, ...rest }: {
+    items: T[]; rowHeight?: number; overscan?: number;
+    row: Snippet<[T, number]>; onnearend?: () => void } & HTMLAttributes<HTMLDivElement> = $props();
+  export function scrollToIndex(i: number): void;
+  ```
+  A scroll container (`...rest` spread on it) holding a spacer of `items.length * rowHeight` px and one absolutely positioned block translated to the first visible row. Visible range from `scrollTop` and a `ResizeObserver` height, updated in a passive scroll handler through `requestAnimationFrame`. Calls `onnearend` when the range end is within 50 rows of `items.length`.
+- `CardList.svelte`:
+  ```ts
+  let { query, refreshKey = '', onopen }: {
+    query: CardQuery; refreshKey?: string | number; onopen?: (card: Card) => void } = $props();
+  ```
+  Pages of 200 through `call('card.list', { query, after, limit: 200 })`. An `$effect` on `query` fields and `refreshKey` resets `cards`, `next` and bumps a generation counter; responses from an older generation are dropped. `onnearend` loads the next page when `next` is not null and no load is running. Row (`.list-row`, 28 px): front and back as single-line plain text (newlines to spaces, ellipsis), back in `--label-secondary`, then `Box n` in `--text-footnote`. Container `role="listbox"`, `tabindex="0"`, `aria-label="Cards"`. Double-click calls `onopen`. Empty states: "No Cards" / "Import a file or add a card." when the query has no search and no box; otherwise "No Results". A failed load shows an inline `.field-error` line with a Retry button.
+- `DeckView.svelte`: toolbar title is the deck name, subtitle "N cards · D due". Toolbar children in order: `SearchField` (bound to `search`), `ImportButton`, `.btn.btn-primary` "Study" (disabled when `due` is 0). Under the toolbar, a filter bar (UI.md §7.3): `Segmented` with options `all` and `1` to `5`, counts from `deck.total` and `deck.boxes`, bound to a string that maps to `box: Box | null`; on the right "N matching" from `call('card.count', query)` when search or box is set. Then `<CardList {query} refreshKey={`${deck.total}:${deck.boxes.join()}`} />` filling the rest. `query` is `$derived` `{ deckId, search, box }`. Keys on `window`: `/` focuses search (not while typing in a field); Enter starts study as today (keep the existing target exclusions). Keep "Deck Not Found".
+- Check: `npm run check`
+
+### T2.2 Bulk delete and Imports · wave F · needs §0, T2.B types, UI.md §7.3 to §7.5, `Alert` props
+Files: new `src/lib/selection.svelte.ts`, `selection.test.ts`, `src/components/ImportsView.svelte`; edit `CardList.svelte`, `DeckView.svelte`, `Sidebar.svelte`, `src/lib/router.svelte.ts`, `router.test.ts`, `src/App.svelte`.
+```ts
+// selection.svelte.ts
+export type SelectionState = { mode: 'ids'; ids: Set<number> } | { mode: 'all'; except: Set<number> };
+export class Selection {
+  state: SelectionState;                    // $state; replace, never mutate in place
+  anchor: number | null;                    // row index of the last plain or toggle click
+  has(id: number): boolean;
+  count(total: number): number;             // ids.size, or total - except.size
+  click(index: number, idAt: (i: number) => number, mods: { toggle: boolean; range: boolean }): void;
+  selectAll(): void;                        // { mode: 'all', except: empty }
+  clear(): void;
+  toRequest(query: CardQuery): CardSelection | null; // null when empty
+}
+```
+- `click`: plain selects only that row and sets the anchor. `toggle` (Ctrl or ⌘) flips that row and sets the anchor. `range` (Shift) selects every row between the anchor and `index` inclusive, keeping the anchor; with no anchor it acts as plain. In `all` mode, toggle adds or removes the id in `except`, range removes the range from `except`, plain goes back to `ids` mode with that one row.
+- `CardList.svelte`: new props `selection: Selection` and `ondelete?: () => void`. Click handling on the listbox (`data-index`, as in `Sidebar.svelte`). Rows get `aria-selected` and `.selected`; the container gets `aria-multiselectable="true"`. Keys: Up/Down move a cursor row and select it, Shift+Up/Down extend, Ctrl/⌘+A calls `selectAll()` (`preventDefault`), Delete or Backspace calls `ondelete`, Esc clears. A query change clears the selection.
+- `DeckView.svelte`: owns `const selection = new Selection()`. When the selection is not empty the right side of the filter bar shows "K selected", a `.btn` "Select All N Matching" (only in `ids` mode with K < N; N from `card.count`), and a `.btn.btn-destructive` "Delete…". Delete opens `Alert` (title `Delete K Cards?` or `Delete 1 Card?`, message "This can't be undone.", `confirmLabel="Delete"`, `cancelLabel="Cancel"`, `destructive`), then `call('card.delete', selection.toRequest(query))`, `selection.clear()`, `refreshDecks()`. Add a `.btn-icon` toolbar button (Lucide `Trash2`, `aria-label` and `title` "Delete Deck…") with `Alert` title `Delete “{name}”?`, message "Its N cards will be deleted. This can't be undone.", then `call('deck.delete', { id })`, `refreshDecks()`, `go({ name: 'home' })`.
+- Router: add `{ name: 'imports' }` as `#/imports`.
+- `ImportsView.svelte`: toolbar "Imports" with subtitle "N imports". Loads `call('batch.list', null)` on mount and after each delete. Rows per UI.md §7.5 with a `.btn-icon` `Trash2` per row (`aria-label="Delete import {source}"`). `Alert`: title `Delete Import?`, message "“{source}” added N cards that are still in your library. They will be deleted. This can't be undone." Then `call('batch.delete', { id })` and `refreshDecks()`. Empty state "No Imports" / "Files you import are listed here so you can remove them in one step."
+- `Sidebar.svelte`: under the deck list, a "Library" section header and one button styled as a sidebar row (Lucide `History`, "Imports"), selected on the imports route, `go({ name: 'imports' })`. It is its own tab stop.
+- `App.svelte`: render `<ImportsView />` for the imports route.
+- Tests: `selection.test.ts` covers plain, toggle, range up and down, range with no anchor, each action in `all` mode, `count`, `toRequest` in both modes and empty. `router.test.ts` gains `#/imports`.
+- Check: `npx vitest run src/lib/selection.test.ts src/lib/router.test.ts && npm run check`
+
+### T2.3 Import preview sheet · wave E · needs §0, §1.6, T2.B `ImportResult`, T2.C `Sheet` and `Segmented` props, UI.md §7.6
+Files: new `src/components/ImportSheet.svelte`, `src/lib/render/warnings.ts`, `warnings.test.ts`; edit `src/components/ImportButton.svelte`, `src/lib/render/smiles.ts`.
+```ts
+// smiles.ts (still the only file that imports smiles-drawer)
+export function checkSmiles(smiles: string): Promise<string | null>; // error message or null; never rejects
+// warnings.ts
+export interface RenderWarning { line: number; side: 'front' | 'back'; raw: string; message: string }
+export function mathWarnings(src: string): { raw: string; message: string }[];
+export function sampleWarnings(sample: ImportSample[]): Promise<RenderWarning[]>;
+```
+- `mathWarnings`: `tokenize(src)`, and for each math token call `katex.renderToString` with the same options as `render.ts`; collect `{ raw, message }` for each throw. `sampleWarnings` runs it on both sides of each sample card and `checkSmiles` on each smiles token (each distinct SMILES string once).
+- `checkSmiles`: lazy `import('smiles-drawer')`, `SD.parse(smiles, () => resolve(null), (e) => resolve(message))`, wrapped in try/catch.
+- `ImportButton.svelte`: the button now only opens the sheet: `<ImportSheet bind:open {deckName} />`. Remove the file input, `summarize` and the result alert.
+- `ImportSheet.svelte`: `let { open = $bindable(false), deckName = null }: { open?: boolean; deckName?: string | null } = $props();`
+  - Source: `Segmented` "File" / "Paste". File shows a "Choose File…" button (hidden `<input type="file" accept=".jsonl,.json,.txt">`) and the chosen name. Paste shows a monospace `<textarea class="field">` (`data-autofocus`).
+  - "Default deck" text field, prefilled with `deckName`, else the file name without extension, else `Imported`; caption "Used for cards without a deck field."
+  - The import file is the chosen `File`, or `new File([text], 'Pasted text', { type: 'text/plain' })`.
+  - Preview: `call('import.run', { file, defaultDeck, commit: false })`, run when a file is chosen, 400 ms after the pasted text or default deck stops changing, with a generation counter to drop stale results. Then `sampleWarnings(result.sample)`.
+  - Preview body per UI.md §7.6: three counts (New, Duplicates, Errors); the deck table (name, added, a `.badge` "New" when `isNew`); errors as "Line N: message" with "and M more" when `errorCount > errors.length`; warnings as "Line N, front: message" under the heading "Rendering warnings (first 20 cards checked)". Warnings never block the import.
+  - Footer: "Cancel" and a `.btn-primary` "Import N Cards" (disabled while previewing or when `added` is 0). Import runs the same call with `commit: true`, then `refreshDecks()` and closes. A rejected call shows `Alert` "Import Failed" with the message and keeps the sheet open. Closing resets all state.
+- Tests: `mathWarnings` for a clean string, bad LaTeX, bad `\ce`, and two errors in one string.
+- Check: `npx vitest run src/lib/render && npm run check`
+
+### T2.4 Card and deck editor · wave G · needs §0, T2.B types, T2.C `Sheet` props, UI.md §7.7, `RichText` props, `ExportButton` props from T2.6
+Files: new `src/components/CardEditorSheet.svelte`, `DeckNameSheet.svelte`; edit `DeckView.svelte`, `CardList.svelte`, `Sidebar.svelte`.
+- `CardEditorSheet.svelte`:
+  ```ts
+  let { open = $bindable(false), card = null, deckId, onsaved }: {
+    open?: boolean; card?: Card | null; deckId: number; onsaved?: (card: Card) => void } = $props();
+  ```
+  `card` null means a new card in `deckId`. A wide `Sheet`, title "New Card" or "Edit Card". Left column: Deck `<select class="field">` from `deckStore.decks`; Front and Back `<textarea class="field">` (Front has `data-autofocus`); Tags text field (split on commas and whitespace). Right column "Preview": `<RichText>` for the front, a hairline, `<RichText>` for the back, fed from copies of the text that update 150 ms after typing stops. Footer: "Cancel", `.btn-primary` "Save" (disabled when front or back is blank). Save calls `card.create` or `card.update`; on success `onsaved(card)` and close; on failure show the message in a `.field-error` line and stay open. Ctrl/⌘+Enter saves.
+- `DeckNameSheet.svelte`: `let { open = $bindable(false), deck = null, onsaved }: { open?: boolean; deck?: { id: number; name: string } | null; onsaved?: (id: number) => void } = $props();` Title "New Deck" or "Rename Deck", one text field (`data-autofocus`, Enter saves), "Cancel" and "Create" or "Rename". Calls `deck.create` or `deck.rename`, then `refreshDecks()`, `onsaved(id)`, close. Errors inline.
+- `Sidebar.svelte`: a `.btn-icon` (Lucide `Plus`, "New Deck") at the right of the "Decks" header; opens `DeckNameSheet`; `onsaved` goes to the new deck.
+- `CardList.svelte`: Enter with exactly one selected row calls `onopen` with that card.
+- `DeckView.svelte`: toolbar gains, before Import, `.btn-icon` buttons `Plus` "New Card", `Pencil` "Rename Deck…", and `<ExportButton {deckId} />`. `onopen` opens the editor with that card. `onsaved` runs `refreshDecks()` and bumps an `edits` counter that is appended to `refreshKey`. Key `N` opens a new card when no field, list or dialog has focus.
+- Check: `npm run check`
+
+### T2.5 Undo last review · wave E · needs §0, §1.5, T2.B `study.undo`
+Files: `src/lib/session.ts`, `session.test.ts`, `src/components/StudyView.svelte`.
+```ts
+// added to StudySession<T>
+get canUndo(): boolean;
+undo(): { card: T; persisted: boolean } | null;
+```
+- `answer` saves a one-step snapshot first: a copy of the queue, the card, and whether this answer was persisted. `undo` restores the queue, removes the card id from `answeredIds` when `persisted`, clears the snapshot and returns `{ card, persisted }`; with no snapshot it returns null. `push` leaves the snapshot alone.
+- `StudyView.svelte`: keep `lastSave: Promise<AnswerResult> | null`, set in `answer` when `persist` (null otherwise). `undo()`: `const u = session.undo()`; return if null; `revealed = false`; `sync()`; if `u.persisted`, await `lastSave`, then `call('study.undo', { reviewId })`; a failure sets `saveError` to "Couldn't undo the last answer: …". Keep `canUndo` in `$state`, refreshed in `sync()`.
+- Keys: move the Ctrl/⌘+Z test above the modifier guard in `onKeydown`: `(ctrlKey || metaKey) && !altKey && !shiftKey && key.toLowerCase() === 'z'` outside an editable target and with no open dialog calls `preventDefault()` and `undo()`. Plain `U` does the same. Both work in the done state.
+- Toolbar: a `.btn-toolbar` "Undo" (Lucide `Undo2`) before "Done", disabled when `!canUndo`. The done state also shows the button, so the last answer can be undone.
+- Tests: undo after a right answer restores the head and `answered`; undo after a wrong answer removes the reinserted copy; undo of a repeat answer gives `persisted: false`; a second undo returns null; `canUndo` transitions.
+- Check: `npx vitest run src/lib/session.test.ts && npm run check`
+
+### T2.6 Export · wave E · needs §0, T2.B `export.jsonl`, `Alert` props
+Files: new `src/components/ExportButton.svelte`; edit `src/App.svelte`.
+- `let { deckId = null }: { deckId?: number | null } = $props();` A `.btn-icon` (Lucide `FileUp`); `aria-label` and `title` are "Export Deck…" for a deck and "Export All Decks…" for null. Click: `const blob = await call('export.jsonl', { deckId })`, then save through a temporary `<a download>` on `URL.createObjectURL(blob)` and revoke the URL. File name: the deck name with characters outside `[\p{L}\p{N} ._-]` replaced by `_`, plus `.jsonl`; for all decks `leitner-box-YYYY-MM-DD.jsonl` (local date). Disabled while running. A rejected call shows `Alert` "Export Failed".
+- `App.svelte`: in the home toolbar, `<ExportButton />` before `ImportButton` when `deckStore.decks.length > 0`.
+- Check: `npm run check` (the round-trip test is in T2.B)
+
+### T2.7 PWA and offline · wave E · needs §0
+Files: `vite.config.ts`, `index.html`, `src/main.ts`, new `public/manifest.webmanifest`, `public/icon.svg`, `public/sw-template.js`.
+- `public/icon.svg`: 512 × 512 viewBox, a `#007AFF` rounded square (`rx="112"`) with three white stacked card outlines, stroke 24, no gradient.
+- `manifest.webmanifest`: `name` and `short_name` "Leitner Box", `start_url: "./"`, `scope: "./"`, `display: "standalone"`, `background_color: "#FFFFFF"`, `theme_color: "#FFFFFF"`, `icons: [{ src: "icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" }]`.
+- `index.html`: `<link rel="manifest" href="./manifest.webmanifest">`, `<link rel="icon" href="./icon.svg" type="image/svg+xml">`, and `theme-color` metas for light (`#FFFFFF`) and dark (`#1E1E1E`).
+- `sw-template.js`: `const VERSION = '__VERSION__'; const FILES = __FILES__;` Install: open cache `leitner-${VERSION}`, `addAll(FILES)`, `skipWaiting()`. Activate: delete other `leitner-*` caches, `clients.claim()`. Fetch: same-origin GET only; cache first with `ignoreSearch`, then network, storing successful responses; a navigation request that fails falls back to the cached `./index.html`.
+- `vite.config.ts`: an inline plugin `swManifest()` with `apply: 'build'` and a `closeBundle` hook: list every file under `dist/` recursively, skip `sw.js`, `sw-template.js`, `*.map`, `*.ttf` and `*.woff` (keep `*.woff2`); `VERSION` is the first 12 hex chars of a SHA-256 over the sorted paths and file contents; write `dist/sw.js` from the template with `FILES` as `./`-relative paths plus `./`; delete `dist/sw-template.js`.
+- `main.ts`: after mount, `if (import.meta.env.PROD && 'serviceWorker' in navigator) void navigator.serviceWorker.register('./sw.js').catch(() => {});`. Keep the existing `persist()` call.
+- Check: `npm run build && node -e "const s=require('fs').readFileSync('dist/sw.js','utf8');process.exit(/\.wasm/.test(s)&&/index\.html/.test(s)&&!s.includes('__FILES__')?0:1)"`
+- Orchestrator, after the check: `npm run preview`, load once, go offline in devtools, reload; import, study and reload again. Confirm the install prompt in Chromium; if the SVG-only icon blocks install, issue a follow-up card for PNG icons.
+
+### T2.8 100k performance check · alone, after wave G · needs §0, T2.B types
+Files: new `scripts/gen-cards.mjs`, `src/lib/bench.ts`; edit `src/main.ts`, `.gitignore`.
+- `gen-cards.mjs`: `node scripts/gen-cards.mjs <count> [decks=10] > file.jsonl`. Deterministic (mulberry32, seed 1). Every card is unique (the index is in the front). About 20% have inline math, 5% display math, 5% `\\ce{…}`, 2% `{{smiles:…}}` from a list of 20 valid SMILES; 1 to 3 tags from 30; decks named `Bench 01` and up, sizes skewed so the first holds about 40%.
+- `bench.ts`: `export async function runBench(url = './bench.jsonl'): Promise<Record<string, number>>`, also set as `window.__bench`. It fetches `url`, wraps it as a `File`, and times with `performance.now()` (median of 20 runs unless noted): `import.run` commit (once); `deck.list`; `card.list` first page and tenth page on the largest deck; `card.list` with a common one-term search, a rare term and a two-term search; `card.count` for the same; `study.due` with limit 20; `renderToHtml` on 20 uncached math cards (mean per card). Prints `console.table` and returns the object. Also `window.__benchScroll()`: scrolls the card list by 1500 px per frame for 3 s and returns the worst frame time and the share of frames over 20 ms.
+- `main.ts`: `if (new URLSearchParams(location.search).has('bench')) void import('./lib/bench');`. `.gitignore`: `bench/`.
+- Check: `node scripts/gen-cards.mjs 1000 | node -e "let n=0;require('readline').createInterface({input:process.stdin}).on('line',l=>{JSON.parse(l);n++}).on('close',()=>process.exit(n===1000?0:1))" && npm run check`
+- Orchestrator: generate 50k and 100k files into `bench/`, `npm run build`, copy one to `dist/bench.jsonl`, `npm run preview`, open `?bench` in Chromium, run `__bench()` on a fresh profile for each file and `__benchScroll()` on the largest deck. Record every number against its CLAUDE.md target in STATUS.md. For each miss issue a fix card; first candidates: drop the FTS triggers during import and rebuild the index once at the end; a per-deck counts table for `deck.list` (a schema change, so its own card).
+
+### T2.9 HIG audit · orchestrator, last
+Walk every screen in UI.md §6 and §7 against the §8 checklist in light and dark, with increased contrast, with reduced motion, and keyboard-only, in Chromium and Firefox. Correct UI.md where the built app is right and the spec is stale. List each finding as one line in STATUS.md and issue one fix card per screen. Finish with `npm run test && npm run check && npm run build`.
