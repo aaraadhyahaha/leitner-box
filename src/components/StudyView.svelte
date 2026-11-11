@@ -715,6 +715,9 @@
   .study {
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) auto;
+    /* Fill the whole main area: the stage is a size container with no intrinsic
+       height, so it would collapse in the parent's `auto` row. */
+    grid-row: 1 / -1;
     height: 100%;
     min-height: 0;
     background: var(--study-bg);
