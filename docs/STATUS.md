@@ -21,7 +21,7 @@ Waves: D = T2.B, T2.C in parallel. E = T2.1, T2.3, T2.5, T2.6, T2.7 in parallel.
 - [ ] T2.2 Bulk delete and Imports (wave F)
 - [ ] T2.3 Import preview sheet (wave E)
 - [ ] T2.4 Card and deck editor (wave G)
-- [ ] T2.5 Undo last review (wave E)
+- [x] T2.5 Undo last review (wave E)
 - [x] T2.6 Export (wave E)
 - [ ] T2.7 PWA and offline (wave E)
 - [ ] T2.8 100k performance check
@@ -69,3 +69,4 @@ Waves: D = T2.B, T2.C in parallel. E = T2.1, T2.3, T2.5, T2.6, T2.7 in parallel.
 - 2026-11-11 `card.list` returns `next` whenever a page is full, so an exactly-full last page is followed by one empty page.
 - 2026-11-11 `.list-row` focused-selection colours apply only inside a focused `[role="listbox"]`; SearchField Esc stops propagation; Sheet `onclose` fires once per close however it closes.
 - 2026-11-11 Export of an unknown deck or a name that sanitises to empty falls back to `leitner-box-YYYY-MM-DD.jsonl`; the object URL is revoked after 1 s for Firefox.
+- 2026-11-11 Undo: cards pushed after the snapshot survive; a persisted answer waits for a running `study.undo` so it never lands first; if the original save failed, undo skips the server call.

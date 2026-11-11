@@ -1,9 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { Undo2 } from '@lucide/svelte';
   import Toolbar from './Toolbar.svelte';
   import RichText from '../lib/render/RichText.svelte';
   import { call } from '../lib/db/client';
-  import type { Card, DueCursor } from '../lib/db/types';
+  import type { AnswerResult, Card, DueCursor } from '../lib/db/types';
   import { StudySession } from '../lib/session';
   import { renderToHtml } from '../lib/render/render';
   import { go } from '../lib/router.svelte';
@@ -21,6 +22,11 @@
   let pending = $state(0);
   let answered = $state(0);
   let revealed = $state(false);
+  let canUndo = $state(false);
+  /** The save of the last persisted answer; null when the last answer wasn't persisted. */
+  let lastSave: Promise<AnswerResult> | null = null;
+  /** A server-side undo in flight; later answers wait for it so it never sees a newer review. */
+  let pendingUndo: Promise<void> | null = null;
 
   let initialLoaded = $state(false);
   let fetching = $state(false);
@@ -62,6 +68,7 @@
     current = session.current;
     pending = session.pending;
     answered = session.answered;
+    canUndo = session.canUndo;
     if ((current?.id ?? null) !== prevId) prerender();
     maybeFetch();
   }
@@ -99,7 +106,10 @@
     if (!current || !revealed) return;
     const { card, persist } = session.answer(correct);
     if (persist) {
-      call('study.answer', { cardId: card.id, correct }).then(
+      const before = pendingUndo ?? Promise.resolve();
+      const save = before.then(() => call('study.answer', { cardId: card.id, correct }));
+      lastSave = save;
+      save.then(
         () => {
           saveError = null;
         },
@@ -107,9 +117,41 @@
           saveError = `Couldn't save the last answer: ${errorMessage(e)}`;
         },
       );
+    } else {
+      lastSave = null;
     }
     revealed = false;
     sync();
+  }
+
+  function undo(): void {
+    const u = session.undo();
+    if (!u) return;
+    const save = lastSave;
+    lastSave = null;
+    revealed = false;
+    sync();
+    if (!u.persisted || !save) return;
+    const run = (async () => {
+      let reviewId: number;
+      try {
+        ({ reviewId } = await save);
+      } catch {
+        // The answer never saved, so there is nothing to undo on disk.
+        saveError = null;
+        return;
+      }
+      try {
+        await call('study.undo', { reviewId });
+        saveError = null;
+      } catch (e) {
+        saveError = `Couldn't undo the last answer: ${errorMessage(e)}`;
+      }
+    })();
+    pendingUndo = run;
+    void run.finally(() => {
+      if (pendingUndo === run) pendingUndo = null;
+    });
   }
 
   async function exit(): Promise<void> {
@@ -130,8 +172,26 @@
   }
 
   function onKeydown(event: KeyboardEvent): void {
+    if (
+      (event.ctrlKey || event.metaKey) &&
+      !event.altKey &&
+      !event.shiftKey &&
+      event.key.toLowerCase() === 'z'
+    ) {
+      if (isEditable(event.target) || document.querySelector('dialog[open]')) return;
+      event.preventDefault();
+      undo();
+      return;
+    }
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     if (isEditable(event.target)) return;
+
+    if (event.key.toLowerCase() === 'u') {
+      if (document.querySelector('dialog[open]')) return;
+      event.preventDefault();
+      if (!event.repeat) undo();
+      return;
+    }
 
     if (event.key === 'Escape') {
       if (document.querySelector('dialog[open]')) return;
@@ -167,6 +227,16 @@
 
 <div class="study">
   <Toolbar title={deckName} subtitle={view === 'card' ? `${pending} remaining` : ''}>
+    <button
+      type="button"
+      class="btn btn-toolbar"
+      disabled={!canUndo}
+      title="Undo last answer"
+      onclick={undo}
+    >
+      <Undo2 size={16} strokeWidth={1.5} aria-hidden="true" />
+      <span>Undo</span>
+    </button>
     <button type="button" class="btn btn-toolbar" onclick={() => void exit()}>Done</button>
   </Toolbar>
 

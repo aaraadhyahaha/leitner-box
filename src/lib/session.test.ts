@@ -96,4 +96,89 @@ describe('StudySession', () => {
     s.answer(false);
     expect(ids(s)).toEqual([2, 1, 3]);
   });
+
+  describe('undo', () => {
+    it('returns null and canUndo is false with nothing answered', () => {
+      const s = new StudySession<C>();
+      s.push(cards(1, 2));
+      expect(s.canUndo).toBe(false);
+      expect(s.undo()).toBeNull();
+    });
+
+    it('undo after a right answer restores the head and answered', () => {
+      const s = new StudySession<C>();
+      s.push(cards(1, 2, 3));
+      s.answer(true);
+      expect(s.canUndo).toBe(true);
+      expect(s.undo()).toEqual({ card: { id: 1 }, persisted: true });
+      expect(ids(s)).toEqual([1, 2, 3]);
+      expect(s.answered).toBe(0);
+      expect(s.canUndo).toBe(false);
+      // Answering again is persisted as a first answer.
+      expect(s.answer(true).persist).toBe(true);
+    });
+
+    it('undo after a wrong answer removes the reinserted copy', () => {
+      const s = new StudySession<C>();
+      s.push(cards(1, 2, 3, 4, 5, 6));
+      s.answer(false);
+      expect(ids(s)).toEqual([2, 3, 4, 5, 1, 6]);
+      expect(s.undo()).toEqual({ card: { id: 1 }, persisted: true });
+      expect(ids(s)).toEqual([1, 2, 3, 4, 5, 6]);
+      expect(s.answered).toBe(0);
+    });
+
+    it('undo of a repeat answer is not persisted and keeps answered', () => {
+      const s = new StudySession<C>();
+      s.push(cards(1, 2));
+      s.answer(false); // [2, 1]
+      s.answer(true); // [1]
+      expect(s.answer(true)).toEqual({ card: { id: 1 }, persist: false }); // []
+      expect(s.undo()).toEqual({ card: { id: 1 }, persisted: false });
+      expect(ids(s)).toEqual([1]);
+      expect(s.answered).toBe(2);
+    });
+
+    it('is one level deep: a second undo returns null', () => {
+      const s = new StudySession<C>();
+      s.push(cards(1, 2, 3));
+      s.answer(true);
+      s.answer(true);
+      expect(s.undo()?.card.id).toBe(2);
+      expect(s.canUndo).toBe(false);
+      expect(s.undo()).toBeNull();
+      expect(ids(s)).toEqual([2, 3]);
+      expect(s.answered).toBe(1);
+    });
+
+    it('undo from the done state brings the last card back', () => {
+      const s = new StudySession<C>();
+      s.push(cards(1));
+      s.answer(true);
+      expect(s.current).toBeNull();
+      expect(s.undo()?.card.id).toBe(1);
+      expect(s.current?.id).toBe(1);
+    });
+
+    it('push leaves the snapshot alone and undo keeps cards pushed since', () => {
+      const s = new StudySession<C>();
+      s.push(cards(1, 2));
+      s.answer(false); // [2, 1]
+      s.push(cards(2, 3, 4));
+      expect(ids(s)).toEqual([2, 1, 3, 4]);
+      expect(s.canUndo).toBe(true);
+      expect(s.undo()).toEqual({ card: { id: 1 }, persisted: true });
+      expect(ids(s)).toEqual([1, 2, 3, 4]);
+    });
+
+    it('canUndo becomes true again after the next answer', () => {
+      const s = new StudySession<C>();
+      s.push(cards(1, 2));
+      s.answer(true);
+      s.undo();
+      expect(s.canUndo).toBe(false);
+      s.answer(true);
+      expect(s.canUndo).toBe(true);
+    });
+  });
 });
