@@ -7,7 +7,7 @@
 - [x] T1.4 Rendering (wave A)
 - [x] T1.5 Tokens, base styles, Alert, Toolbar (wave A)
 - [x] T1.6 Import format doc and sample file (wave A)
-- [ ] T1.7 Database worker, operations and client
+- [x] T1.7 Database worker, operations and client
 - [ ] T1.8 App shell, sidebar, import, deck view (wave C)
 - [ ] T1.9 Study view (wave C)
 - [ ] T1.10 MVP smoke test (orchestrator)
@@ -46,3 +46,5 @@
 - 2026-11-11 `<dialog>`s need `margin: auto` (the reset zeroes it); Alert syncs `open` on the `close` event too.
 - 2026-11-11 A destructive alert with no Cancel focuses the dialog itself, not the button.
 - 2026-11-11 SMILES SVG size is set by `width`/`height` attributes, not CSS; `hydrateSmiles` is untested in Node (no DOM), to verify in T1.10.
+- 2026-11-11 SQLite WASM runs under Node, so `ops.test.ts` runs for real; worker handlers take `(db, args)` from the init promise.
+- 2026-11-11 An import with a blank default deck and no `deck` field goes to deck `Imported`.
