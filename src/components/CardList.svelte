@@ -158,6 +158,15 @@
         e.preventDefault();
         moveTo(cards.length - 1, e.shiftKey);
         break;
+      case 'Enter': {
+        if (e.shiftKey || selection.state.mode !== 'ids' || selection.state.ids.size !== 1) return;
+        const [id] = selection.state.ids;
+        const card = cards.find((c) => c.id === id);
+        if (!card) return;
+        e.preventDefault();
+        onopen?.(card);
+        break;
+      }
       case 'Delete':
       case 'Backspace':
         if (selection.toRequest(query) === null) return;

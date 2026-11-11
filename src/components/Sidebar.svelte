@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { History } from '@lucide/svelte';
+  import { History, Plus } from '@lucide/svelte';
+  import DeckNameSheet from './DeckNameSheet.svelte';
   import { deckStore } from '../lib/decks.svelte';
   import { router, go } from '../lib/router.svelte';
 
@@ -22,6 +23,7 @@
   const importsSelected = $derived(router.route.name === 'imports');
 
   let listEl: HTMLElement | undefined = $state();
+  let newDeckOpen = $state(false);
 
   function rowId(id: number): string {
     return `sidebar-deck-${id}`;
@@ -65,7 +67,18 @@
 </script>
 
 <nav class="sidebar" aria-label="Decks">
-  <h2 class="sidebar-header" id="sidebar-decks-header">Decks</h2>
+  <div class="sidebar-header-row">
+    <h2 class="sidebar-header" id="sidebar-decks-header">Decks</h2>
+    <button
+      type="button"
+      class="btn-icon"
+      aria-label="New Deck"
+      title="New Deck"
+      onclick={() => (newDeckOpen = true)}
+    >
+      <Plus size={16} strokeWidth={1.5} aria-hidden="true" />
+    </button>
+  </div>
   {#if decks.length === 0}
     {#if deckStore.loaded}
       <div class="empty-state sidebar-empty">
@@ -114,6 +127,8 @@
   </button>
 </nav>
 
+<DeckNameSheet bind:open={newDeckOpen} onsaved={(id) => go({ name: 'deck', deckId: id })} />
+
 <style>
   .sidebar {
     display: flex;
@@ -131,6 +146,19 @@
     font: var(--text-subhead) var(--font-system);
     font-weight: 600;
     color: var(--label-secondary);
+  }
+
+  .sidebar-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s2);
+    flex: none;
+  }
+
+  .sidebar-header-row .sidebar-header {
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   .sidebar-section {

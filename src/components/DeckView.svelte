@@ -5,9 +5,12 @@
   import Segmented from './Segmented.svelte';
   import CardList from './CardList.svelte';
   import Alert from './Alert.svelte';
-  import { Trash2 } from '@lucide/svelte';
+  import ExportButton from './ExportButton.svelte';
+  import CardEditorSheet from './CardEditorSheet.svelte';
+  import DeckNameSheet from './DeckNameSheet.svelte';
+  import { Pencil, Plus, Trash2 } from '@lucide/svelte';
   import { call } from '../lib/db/client';
-  import type { Box, CardQuery } from '../lib/db/types';
+  import type { Box, Card, CardQuery } from '../lib/db/types';
   import { deckStore, refreshDecks } from '../lib/decks.svelte';
   import { go } from '../lib/router.svelte';
   import { Selection } from '../lib/selection.svelte';
@@ -33,7 +36,31 @@
       : [],
   );
 
-  const refreshKey = $derived(deck ? `${deck.total}:${deck.boxes.join()}` : '');
+  // Bumped after each card save so edits that keep the counts still reload the list.
+  let edits = $state(0);
+  const refreshKey = $derived(deck ? `${deck.total}:${deck.boxes.join()}:${edits}` : '');
+
+  let editorOpen = $state(false);
+  let editorCard: Card | null = $state.raw(null);
+  let renameOpen = $state(false);
+  let renameTarget: { id: number; name: string } | null = $state.raw(null);
+
+  function openEditor(card: Card | null) {
+    if (!deck) return;
+    editorCard = card;
+    editorOpen = true;
+  }
+
+  function openRename() {
+    if (!deck) return;
+    renameTarget = { id: deck.id, name: deck.name };
+    renameOpen = true;
+  }
+
+  async function onCardSaved() {
+    edits++;
+    await refreshDecks();
+  }
 
   const subtitle = $derived(
     deck ? `${deck.total === 1 ? '1 card' : `${deck.total} cards`} · ${deck.due} due` : '',
@@ -153,6 +180,15 @@
 
   function onWindowKeydown(e: KeyboardEvent) {
     if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (document.querySelector('dialog[open]')) return;
+    if ((e.key === 'n' || e.key === 'N') && !e.shiftKey) {
+      const t = e.target;
+      if (t instanceof Element && t.closest('input, textarea, select, [contenteditable], [role="listbox"]')) return;
+      if (!deck) return;
+      e.preventDefault();
+      openEditor(null);
+      return;
+    }
     if (e.key === '/') {
       if (isTyping(e.target)) return;
       if (e.target instanceof Element && e.target.closest('dialog')) return;
@@ -177,6 +213,25 @@
 {#if deck}
   <Toolbar title={deck.name} {subtitle}>
     <SearchField bind:this={searchField} bind:value={search} placeholder="Search" />
+    <button
+      type="button"
+      class="btn-icon"
+      aria-label="New Card"
+      title="New Card"
+      onclick={() => openEditor(null)}
+    >
+      <Plus size={16} strokeWidth={1.5} aria-hidden="true" />
+    </button>
+    <button
+      type="button"
+      class="btn-icon"
+      aria-label="Rename Deck…"
+      title="Rename Deck…"
+      onclick={openRename}
+    >
+      <Pencil size={16} strokeWidth={1.5} aria-hidden="true" />
+    </button>
+    <ExportButton {deckId} />
     <button
       type="button"
       class="btn-icon"
@@ -224,7 +279,13 @@
         </p>
       {/if}
     </div>
-    <CardList {query} {selection} {refreshKey} ondelete={askDeleteCards} />
+    <CardList
+      {query}
+      {selection}
+      {refreshKey}
+      onopen={(card) => openEditor(card)}
+      ondelete={askDeleteCards}
+    />
   </div>
   <Alert
     bind:open={deleteCardsOpen}
@@ -244,6 +305,8 @@
     destructive
     onconfirm={deleteDeck}
   />
+  <CardEditorSheet bind:open={editorOpen} card={editorCard} {deckId} onsaved={onCardSaved} />
+  <DeckNameSheet bind:open={renameOpen} deck={renameTarget} />
 {:else}
   <Toolbar title="Leitner Box" />
   <div class="deck-body">
