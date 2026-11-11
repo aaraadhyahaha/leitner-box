@@ -9,3 +9,4 @@ mount(App, { target: document.getElementById('app')! });
 
 void requestPersistence();
 if (import.meta.env.PROD) registerServiceWorker();
+if (new URLSearchParams(location.search).has('perf')) void import('./lib/perf');

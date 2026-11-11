@@ -26,6 +26,7 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
+  if (url.pathname.endsWith('.jsonl')) return; // bench data: straight to the network
   event.respondWith(
     (async () => {
       const cache = await caches.open(CACHE);
@@ -33,8 +34,8 @@ self.addEventListener('fetch', (event) => {
       if (hit) return hit;
       try {
         const res = await fetch(req);
-        // Runtime cache (e.g. the lazily loaded SMILES chunk); skip bench data files.
-        if (res.ok && res.type === 'basic' && !url.pathname.endsWith('.jsonl')) cache.put(req, res.clone());
+        // Runtime cache, e.g. the lazily loaded SMILES chunk.
+        if (res.ok && res.type === 'basic') cache.put(req, res.clone());
         return res;
       } catch (err) {
         if (req.mode === 'navigate') {

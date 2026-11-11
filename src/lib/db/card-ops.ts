@@ -44,11 +44,13 @@ export function listCards(db: Database, q: CardQuery, after: DueCursor | null, l
   let sql = `SELECT ${C_COLS} ${w.sql}`;
   const bind = [...w.bind];
   if (w.fts) {
+    // Constrain and order by the FTS rowid (= c.id) so FTS5 streams matches in order
+    // instead of SQLite sorting every match in a temp B-tree.
     if (after) {
-      sql += ' AND c.id > ?';
+      sql += ' AND cards_fts.rowid > ?';
       bind.push(after.id);
     }
-    sql += ' ORDER BY c.id LIMIT ?';
+    sql += ' ORDER BY cards_fts.rowid LIMIT ?';
   } else {
     if (after) {
       sql += ' AND (c.due_day, c.id) > (?, ?)';

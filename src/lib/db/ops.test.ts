@@ -130,6 +130,21 @@ describe('runImport', () => {
     );
     expect(rows).toEqual([['mitochondria']]);
   });
+
+  it('keeps the FTS insert trigger after a commit, a preview and a re-import', async () => {
+    const trigger = () => db.selectValue("SELECT count(*) FROM sqlite_master WHERE type = 'trigger' AND name = 'cards_ai'");
+    await importText(jsonl([{ front: 'a', back: 'b' }]), { commit: false });
+    expect(trigger()).toBe(1);
+    await importText(jsonl([{ front: 'a', back: 'b' }]));
+    await importText(jsonl([{ front: 'a', back: 'b' }, { front: 'c', back: 'quasar' }]));
+    expect(trigger()).toBe(1);
+    // Only the new card was indexed by the second import; no duplicate FTS rows.
+    expect(db.selectValue("SELECT count(*) FROM cards_fts WHERE cards_fts MATCH 'b'")).toBe(1);
+    expect(db.selectValue("SELECT count(*) FROM cards_fts WHERE cards_fts MATCH 'quasar'")).toBe(1);
+    // Cards inserted outside an import are still indexed by the trigger.
+    db.exec("INSERT INTO cards(deck_id, front, back, tags, hash, due_day, created_at, updated_at) VALUES (1, 'n', 'nebula', '', 'h1', 0, 0, 0)");
+    expect(db.selectValue("SELECT count(*) FROM cards_fts WHERE cards_fts MATCH 'nebula'")).toBe(1);
+  });
 });
 
 describe('listDecks', () => {

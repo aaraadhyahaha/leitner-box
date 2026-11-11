@@ -22,7 +22,7 @@
   const PAGE = 200;
 
   let cards: Card[] = $state.raw([]);
-  let next: DueCursor | null = $state(null);
+  let next: DueCursor | null = $state.raw(null); // raw: a proxy cannot be posted to the worker
   let loading = $state(false);
   let loaded = $state(false);
   let error: string | null = $state(null);

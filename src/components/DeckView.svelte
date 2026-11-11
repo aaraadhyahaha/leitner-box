@@ -89,14 +89,19 @@
     const gen = ++countGen;
     matching = null;
     if (!active) return;
-    call('card.count', q).then(
-      (n) => {
-        if (gen === countGen) matching = n;
-      },
-      () => {
-        if (gen === countGen) matching = null;
-      },
-    );
+    // Queue the count after the list's page request: the worker is serial and a count over
+    // a common term takes longer than the page itself.
+    const timer = setTimeout(() => {
+      call('card.count', q).then(
+        (n) => {
+          if (gen === countGen) matching = n;
+        },
+        () => {
+          if (gen === countGen) matching = null;
+        },
+      );
+    });
+    return () => clearTimeout(timer);
   });
 
   // Total matching rows: the count when filtering, otherwise the deck total.
