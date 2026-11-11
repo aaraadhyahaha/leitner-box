@@ -75,6 +75,40 @@
   --selection: var(--accent);
   --on-selection: var(--on-accent);
 
+  /* 7.10 Study card (docs/UI.md §7.10) */
+  --yellow: #FFCC00;
+  --box-1: var(--red);
+  --box-2: var(--orange);
+  --box-3: var(--yellow);
+  --box-4: var(--green);
+  --box-5: var(--accent);
+  --study-bg: #F5F5F7;
+  --card-bg: #FFFFFF;
+  --card-border: var(--separator);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.06), 0 12px 32px rgba(0, 0, 0, 0.08);
+  --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.08), 0 16px 40px rgba(0, 0, 0, 0.12);
+  --stack-dim: rgba(0, 0, 0, 0.06);
+  --card-radius: 16px;
+  --card-min-w: 280px;
+  --card-max-w: 640px;
+  --card-aspect: 14 / 9;
+  --card-perspective: 1200px;
+  --stack-step: 6px;
+  --chip-height: 20px;
+  --controls-width: 360px;
+  --progress-height: 2px;
+  --warning-line: 16px;
+  --dur-flip: 420ms;
+  --dur-fly: 300ms;
+  --dur-rise: 250ms;
+  --dur-chip: 200ms;
+  --dur-hover: 160ms;
+  --dur-tint: 120ms;
+  --dur-fade: 150ms;
+  --dur-progress: 300ms;
+  --ease-flip: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-fly: cubic-bezier(0.4, 0, 1, 1);
+
   /* 4. Motion */
   --dur-fast: 120ms;
   --dur-sheet: 220ms;
@@ -104,6 +138,12 @@
     --focus-ring: rgba(10, 132, 255, 0.65);
     --backdrop: rgba(0, 0, 0, 0.45);
     --shadow-sheet: 0 12px 40px rgba(0, 0, 0, 0.60);
+    --yellow: #FFD60A;
+    --study-bg: #1E1E1E;
+    --card-bg: #2C2C2E;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.30), 0 12px 32px rgba(0, 0, 0, 0.40);
+    --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.35), 0 16px 40px rgba(0, 0, 0, 0.50);
+    --stack-dim: rgba(0, 0, 0, 0.30);
   }
 }
 
