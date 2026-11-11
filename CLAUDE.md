@@ -39,7 +39,9 @@ Out of scope: sync, accounts, images, audio, stats dashboards, nested decks.
 - `src/main.ts` (entry, persist()), `src/App.svelte`, `src/vite-env.d.ts`, `src/types/shims.d.ts`
 - `src/lib/db/types.ts`: the shared API contract (PLAN §1.3)
 - `src/styles/tokens.css`, `src/styles/base.css`
+- `src/lib/leitner.ts` (intervals, dayNumber, review), `src/lib/session.ts` (StudySession queue), `src/lib/import-parse.ts` (validate, cardHash, streaming readCards), each with `*.test.ts`
 - `src/components/StudyView.svelte`
+- `docs/IMPORT_FORMAT.md` (format + AI prompt), `fixtures/sample.jsonl` (10 valid, 1 dup, 1 error)
 
 ## Performance (must handle 100k+ cards)
 - SQLite WASM (`@sqlite.org/sqlite-wasm`) running in a **Web Worker**, stored in OPFS through the `opfs-sahpool` VFS (no COOP/COEP headers needed). Indexes on (deck, due day), and FTS5 for search. Do all bulk writes in one transaction with prepared statements.

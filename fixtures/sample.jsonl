@@ -1,0 +1,12 @@
+{"deck": "Sample", "front": "Capital of France?", "back": "Paris", "tags": ["geography", "europe"]}
+{"deck": "Sample", "front": "Derivative of $x^2$?", "back": "$2x$", "tags": "calculus, derivatives"}
+{"deck": "Sample", "front": "Quadratic formula", "back": "$$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$", "tags": ["algebra"]}
+{"deck": "Sample", "front": "Balanced combustion of methane", "back": "\\ce{CH4 + 2O2 -> CO2 + 2H2O}", "tags": ["chemistry", "reactions"]}
+{"deck": "Sample", "front": "Structure of benzene", "back": "{{smiles:c1ccccc1}}", "tags": ["organic-chemistry"]}
+{"deck": "Sample", "front": "Draw ethanol", "back": "{{smiles:CCO|ethanol}}", "tags": "organic-chemistry alcohols"}
+{"deck": "Sample", "front": "SI unit of force in base units", "back": "$1\\,\\text{N} = 1\\,\\text{kg}\\,\\text{m}\\,\\text{s}^{-2}$", "tags": ["physics", "units"]}
+{"deck": "Sample", "front": "Molar mass of water", "back": "$\\ce{H2O}$: \\pu{18.02 g/mol}", "tags": ["chemistry"]}
+{"deck": "Sample", "front": "Price of the paperback?", "back": "\\$12\nPaperback edition, 320 pages"}
+{"front": "Speed of light in vacuum", "back": "$c \\approx 3.00 \\times 10^{8}\\ \\text{m/s}$", "tags": ["physics", "constants"]}
+{"deck": "Sample", "front": "Capital of France?", "back": "Paris", "tags": ["geography", "europe"]}
+{"front": "broken"
