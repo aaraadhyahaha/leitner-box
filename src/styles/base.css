@@ -122,6 +122,128 @@ textarea,
   opacity: 0.4;
 }
 
+/* Icon button */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--control-height);
+  height: var(--control-height);
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--label);
+  cursor: default;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.btn-icon:hover:not(:disabled) {
+  background: var(--fill-hover);
+}
+
+.btn-icon:active:not(:disabled) {
+  background: var(--bg-control-pressed);
+}
+
+.btn-icon:disabled {
+  opacity: 0.4;
+}
+
+.btn-icon svg {
+  width: var(--icon);
+  height: var(--icon);
+  flex: none;
+}
+
+/* Fields */
+.field {
+  display: block;
+  width: 100%;
+  height: var(--control-height);
+  min-height: var(--control-height);
+  padding: 0 var(--s2);
+  border-radius: var(--radius-control);
+  background: var(--bg-control);
+  border: var(--hairline) solid var(--control-border);
+  color: var(--label);
+  font: var(--text-body) var(--font-system);
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+textarea.field {
+  height: auto;
+  min-height: var(--textarea-min);
+  padding: var(--s2);
+  resize: vertical;
+}
+
+.field::placeholder {
+  color: var(--label-tertiary);
+}
+
+.field:disabled {
+  opacity: 0.4;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: var(--s1);
+  font: var(--text-callout) var(--font-system);
+  color: var(--label-secondary);
+}
+
+.field-error {
+  font: var(--text-callout) var(--font-system);
+  color: var(--red);
+}
+
+/* List row */
+.list-row {
+  display: flex;
+  align-items: center;
+  column-gap: var(--s3);
+  height: var(--row-height);
+  padding: 0 var(--s3);
+  border-bottom: var(--hairline) solid var(--separator);
+}
+
+.list-row:hover {
+  background: var(--fill-hover);
+}
+
+.list-row.selected,
+.list-row[aria-selected="true"] {
+  background: var(--fill-selected);
+}
+
+/* When the list (role="listbox" container) has focus, selection uses the accent. */
+[role="listbox"]:focus-within .list-row.selected,
+[role="listbox"]:focus-within .list-row[aria-selected="true"] {
+  background: var(--selection);
+  color: var(--on-selection);
+}
+
+[role="listbox"]:focus-within .list-row.selected *,
+[role="listbox"]:focus-within .list-row[aria-selected="true"] * {
+  color: var(--on-selection);
+}
+
+/* Badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--s1);
+  border-radius: var(--radius-row);
+  background: var(--fill-selected);
+  color: var(--label-secondary);
+  font: var(--text-subhead) var(--font-system);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Empty state */
 .empty-state {
   display: flex;

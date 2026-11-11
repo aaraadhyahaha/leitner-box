@@ -16,7 +16,7 @@
 Waves: D = T2.B, T2.C in parallel. E = T2.1, T2.3, T2.5, T2.6, T2.7 in parallel. F = T2.2. G = T2.4. Then T2.8, T2.9.
 - [x] T2.A Extend UI.md (§7 screens, §8 audit checklist)
 - [x] T2.B API contract and DB ops (wave D)
-- [ ] T2.C UI primitives: tokens, Sheet, Segmented, SearchField (wave D)
+- [x] T2.C UI primitives: tokens, Sheet, Segmented, SearchField (wave D)
 - [ ] T2.1 Card list, search, box filter (wave E)
 - [ ] T2.2 Bulk delete and Imports (wave F)
 - [ ] T2.3 Import preview sheet (wave E)
@@ -67,3 +67,4 @@ Waves: D = T2.B, T2.C in parallel. E = T2.1, T2.3, T2.5, T2.6, T2.7 in parallel.
 - 2026-11-11 Chromium is not installed; T1.10, T2.7, T2.8 and T2.9 need it, otherwise they run in Firefox only.
 - 2026-11-11 card-ops SELECTs prefix columns with `c.` (cards_fts has front/back/tags too); create/update run in a transaction; renameDeck on an unknown id throws `Deck not found`.
 - 2026-11-11 `card.list` returns `next` whenever a page is full, so an exactly-full last page is followed by one empty page.
+- 2026-11-11 `.list-row` focused-selection colours apply only inside a focused `[role="listbox"]`; SearchField Esc stops propagation; Sheet `onclose` fires once per close however it closes.

@@ -65,6 +65,16 @@
   --icon: 16px;
   --btn-large-min: 140px;
 
+  /* 7.1 Tier 2 */
+  --sheet-width: 480px;
+  --sheet-width-wide: 720px;
+  --sheet-max-height: 80vh;
+  --filter-bar-height: 36px;
+  --search-width: 200px;
+  --textarea-min: 96px;
+  --selection: var(--accent);
+  --on-selection: var(--on-accent);
+
   /* 4. Motion */
   --dur-fast: 120ms;
   --dur-sheet: 220ms;
