@@ -119,7 +119,7 @@ textarea,
 }
 
 .btn:disabled {
-  opacity: 0.4;
+  opacity: var(--opacity-disabled);
 }
 
 /* Icon button */
@@ -149,7 +149,7 @@ textarea,
 }
 
 .btn-icon:disabled {
-  opacity: 0.4;
+  opacity: var(--opacity-disabled);
 }
 
 .btn-icon svg {
@@ -186,7 +186,7 @@ textarea.field {
 }
 
 .field:disabled {
-  opacity: 0.4;
+  opacity: var(--opacity-disabled);
 }
 
 .field-label {
@@ -266,7 +266,7 @@ textarea.field {
   color: var(--label-tertiary);
 }
 
-.empty-state .btn {
+.empty-state > .btn {
   margin-top: var(--s2);
 }
 

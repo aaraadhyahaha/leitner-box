@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { fmt } from '../lib/format';
   let {
     value = $bindable(),
     options,
@@ -50,7 +51,7 @@
     >
       <span class="segment-label">{option.label}</span>
       {#if option.count !== undefined}
-        <span class="segment-count">{option.count}</span>
+        <span class="segment-count">{fmt(option.count)}</span>
       {/if}
     </button>
   {/each}

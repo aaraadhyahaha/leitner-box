@@ -7,6 +7,7 @@
   import { call } from '../lib/db/client';
   import type { BatchSummary } from '../lib/db/types';
   import { deckStore, refreshDecks } from '../lib/decks.svelte';
+  import { count } from '../lib/format';
 
   let batches: BatchSummary[] = $state.raw([]);
   let loaded = $state(false);
@@ -37,11 +38,11 @@
   });
 
   const subtitle = $derived(
-    loaded && !error ? (batches.length === 1 ? '1 import' : `${batches.length} imports`) : '',
+    loaded && !error ? count(batches.length, 'import') : '',
   );
 
   function plural(n: number, word: string): string {
-    return `${n} ${n === 1 ? word : `${word}s`}`;
+    return count(n, word);
   }
 
   function decksText(b: BatchSummary): string {
@@ -121,8 +122,8 @@
           <button
             type="button"
             class="btn-icon"
-            aria-label="Delete import {b.source}"
-            title="Delete import {b.source}"
+            aria-label="Delete Import “{b.source}”…"
+            title="Delete Import…"
             disabled={deleting}
             onclick={() => askDelete(b)}
           >

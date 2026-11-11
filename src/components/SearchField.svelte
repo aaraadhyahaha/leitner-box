@@ -79,8 +79,8 @@
     <button
       type="button"
       class="search-clear"
-      aria-label="Clear search"
-      title="Clear search"
+      aria-label="Clear Search"
+      title="Clear Search"
       onclick={handleClearClick}
     >
       <X size={14} stroke-width={1.5} />
@@ -112,7 +112,7 @@
 
   .search-input {
     padding-left: calc(var(--s2) + var(--icon) + var(--s1));
-    padding-right: calc(var(--s1) + var(--icon) + var(--s1));
+    padding-right: var(--control-height);
     -webkit-appearance: none;
     appearance: none;
   }
@@ -124,17 +124,18 @@
     display: none;
   }
 
+  /* 28 px hit target (the full field height); the glyph stays small like a native search field. */
   .search-clear {
     position: absolute;
-    right: var(--s1);
+    right: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: calc(var(--icon) + var(--s1));
-    height: calc(var(--icon) + var(--s1));
+    width: var(--control-height);
+    height: var(--control-height);
     padding: 0;
     border: none;
-    border-radius: var(--radius-row);
+    border-radius: var(--radius-control);
     background: transparent;
     color: var(--label-secondary);
     cursor: default;

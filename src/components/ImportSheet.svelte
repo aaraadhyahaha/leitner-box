@@ -7,6 +7,7 @@
   import { refreshDecks } from '../lib/decks.svelte';
   import { sampleWarnings, type RenderWarning } from '../lib/render/warnings';
   import type { ImportResult } from '../lib/db/types';
+  import { count, fmt } from '../lib/format';
 
   let { open = $bindable(false), deckName = null }: { open?: boolean; deckName?: string | null } =
     $props();
@@ -38,7 +39,7 @@
   let lastSource = 'file';
 
   const added = $derived(result?.added ?? 0);
-  const importLabel = $derived(added === 1 ? 'Import 1 Card' : `Import ${added} Cards`);
+  const importLabel = $derived(`Import ${count(added, 'Card')}`);
   const canImport = $derived(!previewing && !importing && previewError === null && added > 0);
   const moreErrors = $derived(result ? result.errorCount - result.errors.length : 0);
 
@@ -199,7 +200,7 @@
     {#if source === 'file'}
       <div class="file-row">
         <button type="button" class="btn" data-autofocus onclick={chooseFile}>Choose File…</button>
-        <span class="file-name" class:placeholder={!file}>{file ? file.name : 'No file chosen'}</span>
+        <span class="file-name" class:placeholder={!file} title={file?.name}>{file ? file.name : 'No file chosen'}</span>
         <input
           bind:this={fileInput}
           type="file"
@@ -243,16 +244,16 @@
     {:else if previewing || result}
       <ul class="counts" aria-label="Preview" aria-busy={previewing}>
         <li class="count-cell">
-          <span class="count">{previewing ? '…' : (result?.added ?? 0)}</span>
+          <span class="count">{previewing ? '…' : fmt(result?.added ?? 0)}</span>
           <span class="count-label">New</span>
         </li>
         <li class="count-cell">
-          <span class="count secondary">{previewing ? '…' : (result?.duplicates ?? 0)}</span>
+          <span class="count secondary">{previewing ? '…' : fmt(result?.duplicates ?? 0)}</span>
           <span class="count-label">Duplicates</span>
         </li>
         <li class="count-cell">
           <span class="count" class:red={!previewing && (result?.errorCount ?? 0) > 0}
-            >{previewing ? '…' : (result?.errorCount ?? 0)}</span
+            >{previewing ? '…' : fmt(result?.errorCount ?? 0)}</span
           >
           <span class="count-label">Errors</span>
         </li>
@@ -272,11 +273,11 @@
                 <tr>
                   <td>
                     <div class="deck-cell">
-                      <span class="deck-name">{d.name}</span>
+                      <span class="deck-name" title={d.name}>{d.name}</span>
                       {#if d.isNew}<span class="badge">New</span>{/if}
                     </div>
                   </td>
-                  <td class="num">{d.added}</td>
+                  <td class="num">{fmt(d.added)}</td>
                 </tr>
               {/each}
             </tbody>
@@ -288,10 +289,10 @@
             <h3 class="list-heading">Errors</h3>
             <ul class="messages errors">
               {#each result.errors as err, i (i)}
-                <li>Line {err.line}: {err.message}</li>
+                <li>Line {fmt(err.line)}: {err.message}</li>
               {/each}
               {#if moreErrors > 0}
-                <li class="more">and {moreErrors} more</li>
+                <li class="more">and {fmt(moreErrors)} more</li>
               {/if}
             </ul>
           </section>
@@ -302,7 +303,7 @@
             <h3 class="list-heading">Rendering warnings (first 20 cards checked)</h3>
             <ul class="messages warnings">
               {#each warnings as w, i (i)}
-                <li title={w.raw}>Line {w.line}, {w.side}: {w.message}</li>
+                <li title={w.raw}>Line {fmt(w.line)}, {w.side}: {w.message}</li>
               {/each}
             </ul>
           </section>

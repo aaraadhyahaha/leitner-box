@@ -21,10 +21,10 @@
   <Sidebar />
   <main class="main">
     {#if deckStore.error}
-      <Toolbar title="Leitner Box" />
+      <Toolbar title="Leitner" />
       <div class="main-scroller">
         <div class="empty-state">
-          <p class="empty-state-title">Couldn't Open Library</p>
+          <p class="empty-state-title">Couldn’t Open Library</p>
           <p class="empty-state-message">{deckStore.error}</p>
         </div>
       </div>
@@ -39,7 +39,7 @@
         <StudyView deckId={route.deckId} />
       {/key}
     {:else}
-      <Toolbar title="Leitner Box">
+      <Toolbar title="Leitner">
         {#if deckStore.decks.length > 0}
           <ExportButton />
         {/if}

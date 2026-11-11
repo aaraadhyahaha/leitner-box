@@ -3,6 +3,7 @@
   import DeckNameSheet from './DeckNameSheet.svelte';
   import { deckStore } from '../lib/decks.svelte';
   import { router, go } from '../lib/router.svelte';
+  import { fmt } from '../lib/format';
 
   const decks = $derived(deckStore.decks);
 
@@ -108,7 +109,7 @@
         >
           <span class="sidebar-name" title={deck.name}>{deck.name}</span>
           {#if deck.due > 0}
-            <span class="sidebar-badge" aria-label="{deck.due} due">{deck.due}</span>
+            <span class="sidebar-badge" aria-label="{fmt(deck.due)} due">{fmt(deck.due)}</span>
           {/if}
         </div>
       {/each}

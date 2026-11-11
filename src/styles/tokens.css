@@ -62,6 +62,8 @@
   --radius-sheet: 10px;
   --hairline: 1px;
   --focus-width: 3px;
+  --edge-width: 2px;
+  --opacity-disabled: 0.4;
   --icon: 16px;
   --btn-large-min: 140px;
 
@@ -152,6 +154,7 @@
   :root {
     --label: rgba(0, 0, 0, 1);
     --label-secondary: rgba(0, 0, 0, 0.75);
+    --label-tertiary: rgba(0, 0, 0, 0.55);
     --separator: rgba(0, 0, 0, 0.40);
     --control-border: rgba(0, 0, 0, 0.40);
     --focus-ring: var(--accent);
@@ -162,6 +165,7 @@
   :root {
     --label: rgba(255, 255, 255, 1);
     --label-secondary: rgba(255, 255, 255, 0.75);
+    --label-tertiary: rgba(255, 255, 255, 0.55);
     --separator: rgba(255, 255, 255, 0.40);
     --control-border: rgba(255, 255, 255, 0.40);
     --focus-ring: var(--accent);

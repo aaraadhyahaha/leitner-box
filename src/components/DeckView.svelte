@@ -13,6 +13,7 @@
   import type { Box, Card, CardQuery } from '../lib/db/types';
   import { deckStore, refreshDecks } from '../lib/decks.svelte';
   import { go } from '../lib/router.svelte';
+  import { count, fmt } from '../lib/format';
   import { Selection } from '../lib/selection.svelte';
 
   let { deckId }: { deckId: number } = $props();
@@ -63,7 +64,7 @@
   }
 
   const subtitle = $derived(
-    deck ? `${deck.total === 1 ? '1 card' : `${deck.total} cards`} · ${deck.due} due` : '',
+    deck ? `${count(deck.total, 'card')} · ${fmt(deck.due)} due` : '',
   );
 
   const selection = new Selection();
@@ -118,7 +119,7 @@
 
   function cardsLabel(n: number, capital: boolean): string {
     const word = capital ? (n === 1 ? 'Card' : 'Cards') : n === 1 ? 'card' : 'cards';
-    return `${n} ${word}`;
+    return `${fmt(n)} ${word}`;
   }
 
   let deleteCardsOpen = $state(false);
@@ -259,12 +260,12 @@
         <div class="filter-selection">
           <p class="filter-status" aria-live="polite">
             {#if selectedCount !== null}
-              {selectedCount} selected
+              {fmt(selectedCount)} selected
             {/if}
           </p>
           {#if selection.state.mode === 'ids' && total !== null && selectedCount !== null && selectedCount < total}
             <button type="button" class="btn" onclick={() => selection.selectAll()}>
-              Select All {total} Matching
+              Select All {fmt(total)} Matching
             </button>
           {/if}
           <button
@@ -279,7 +280,7 @@
       {:else}
         <p class="filter-status" aria-live="polite">
           {#if filtered && matching !== null}
-            {matching} matching
+            {fmt(matching)} matching
           {/if}
         </p>
       {/if}
@@ -313,7 +314,7 @@
   <CardEditorSheet bind:open={editorOpen} card={editorCard} {deckId} onsaved={onCardSaved} />
   <DeckNameSheet bind:open={renameOpen} deck={renameTarget} />
 {:else}
-  <Toolbar title="Leitner Box" />
+  <Toolbar title="Leitner" />
   <div class="deck-body">
     {#if deckStore.loaded}
       <div class="empty-state">

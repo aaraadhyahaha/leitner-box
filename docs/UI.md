@@ -48,9 +48,9 @@ Each text token holds `weight size/line-height` and is used as `font: var(--text
 | `--backdrop` | `rgba(0,0,0,0.20)` | `rgba(0,0,0,0.45)` |
 | `--shadow-sheet` | `0 12px 40px rgba(0,0,0,0.25)` | `0 12px 40px rgba(0,0,0,0.60)` |
 
-Dark values apply under `@media (prefers-color-scheme: dark)`. `--shadow-sheet` is the only shadow, and only on alerts, sheets and popovers. No gradients.
+Dark values apply under `@media (prefers-color-scheme: dark)`. `--shadow-sheet` is the only shadow, and only on alerts, sheets, popovers and notices (§7.11). No gradients.
 
-`@media (prefers-contrast: more)`: `--label` is fully opaque, `--label-secondary` alpha 0.75, `--separator` and `--control-border` alpha 0.40, `--focus-ring` is solid `--accent`.
+`@media (prefers-contrast: more)`: `--label` is fully opaque, `--label-secondary` alpha 0.75, `--label-tertiary` alpha 0.55, `--separator` and `--control-border` alpha 0.40, `--focus-ring` is solid `--accent`.
 
 ## 3. Space, size, shape
 
@@ -69,6 +69,9 @@ Dark values apply under `@media (prefers-color-scheme: dark)`. `--shadow-sheet` 
 | `--radius-sheet` | `10px` |
 | `--hairline` | `1px` |
 | `--focus-width` | `3px` |
+| `--edge-width` | `2px` (study answer edge) |
+| `--opacity-disabled` | `0.4` |
+| `--notice-width` | `360px` |
 | `--icon` | `16px` (Lucide, stroke 1.5) |
 
 ## 4. Motion
@@ -79,8 +82,8 @@ Dark values apply under `@media (prefers-color-scheme: dark)`. `--shadow-sheet` 
 
 - Reset: `box-sizing: border-box`, zero margins, `html, body, #app { height: 100% }`, `body { overflow: hidden; font: var(--text-body) var(--font-system); color: var(--label); background: var(--bg-content); -webkit-font-smoothing: antialiased }`. UI text is not selectable (`user-select: none`); card content and inputs are.
 - Focus: `:focus-visible { outline: var(--focus-width) solid var(--focus-ring); outline-offset: 1px }`; never removed.
-- `.btn`: height `--control-height`, padding `0 var(--s3)`, radius `--radius-control`, background `--bg-control`, border `--hairline solid --control-border`, `--text-body`. `.btn-primary`: background `--accent`, colour `--on-accent`, `--text-headline`, no border. `.btn-destructive`: colour `--red`. `.btn-toolbar`: no border or background until hover (`--fill-hover`); icon plus label. `.btn-large`: height `--answer-height`, min-width `140px`. Disabled: opacity 0.4. Pressed: `--bg-control-pressed`.
-- `.empty-state`: centred column, `--text-title1` title in `--label-secondary`, `--text-body` line in `--label-tertiary`, optional button, gap `--s2`.
+- `.btn`: height `--control-height`, padding `0 var(--s3)`, radius `--radius-control`, background `--bg-control`, border `--hairline solid --control-border`, `--text-body`. `.btn-primary`: background `--accent`, colour `--on-accent`, `--text-headline`, no border. `.btn-destructive`: colour `--red`. `.btn-toolbar`: no border or background until hover (`--fill-hover`); icon plus label. `.btn-large`: height `--answer-height`, min-width `140px`. Disabled: opacity `--opacity-disabled`. Pressed: `--bg-control-pressed`.
+- `.empty-state`: centred column (the centring must not leak into sheets it opens: `.sheet` resets `text-align`, and only a direct-child `.btn` gets the top margin), `--text-title1` title in `--label-secondary`, `--text-body` line in `--label-tertiary`, optional button, gap `--s2`.
 - Scrollbars: thin, thumb `--label-tertiary`, transparent track.
 
 ## 6. Screens (Tier 1)
@@ -115,7 +118,7 @@ Card content is selectable. A render warning is `--orange` text with a dotted un
 
 **7.3 Deck view (replaces the Tier 1 deck view).** Toolbar: deck name, "N cards · D due"; then search field (`--search-width`), icon buttons New Card, Rename Deck, Export Deck, Delete Deck, then "Import…", then a `.btn-primary` "Study". Filter bar: height `--filter-bar-height`, padding `0 --s4`, bottom border `--separator`; left, a segmented control "All n, Box 1 n … Box 5 n"; right, status text in `--text-callout`, `--label-secondary` ("N matching"), replaced while rows are selected by "K selected", "Select All N Matching" and "Delete…". The card list fills the rest: `.list-row` with front (flex 1), back (flex 1, `--label-secondary`), "Box n" (`--text-footnote`, fixed width). Empty states: "No Cards" / "Import a file or add a card."; "No Results" when a search or filter is active. Keys: `/` search, Enter study (outside the list) or edit (one row selected), `N` new card, Up/Down, Shift+Up/Down, Ctrl/⌘+A, Delete, Esc.
 
-**7.4 Segmented control and search field.** Segmented: height `--control-height`, radius `--radius-control`, background `--fill-hover`; the selected segment is `--bg-control` with a `--control-border` hairline; `--text-body`, counts in `--label-secondary` with tabular numbers. Search field: `.field` with a leading 16 px `Search` icon in `--label-secondary` and a trailing clear button.
+**7.4 Segmented control and search field.** Segmented: height `--control-height`, radius `--radius-control`, background `--fill-hover`; the selected segment is `--bg-control` with a `--control-border` hairline; `--text-body`, counts in `--label-secondary` with tabular numbers. The control is `--control-height`; its segments are inset by the hairline, like `NSSegmentedControl`. Search field: `.field` with a leading 16 px `Search` icon in `--label-secondary` and a trailing "Clear Search" button whose hit area is the full `--control-height` square (glyph 14 px); Esc also clears.
 
 **7.5 Sidebar and Imports.** The "Decks" header has a trailing `.btn-icon` "New Deck". Below the decks, a "Library" header and an "Imports" row (icon plus label, same row metrics). Imports view: toolbar "Imports" / "N imports", `ExportButton` for all decks; `.list-row` with source name (flex 1), deck name or "N decks", "N cards" (tabular), date (`--label-secondary`, locale short date), trailing delete icon button. Empty state "No Imports".
 
@@ -133,10 +136,14 @@ Card content is selectable. A render warning is `--orange` text with a dotted un
 - Layout: top bar (`--toolbar-height`) with Done left, "N of M" centred (`--text-headline`, "of M" in `--label-secondary`, the number slides in on change) and Undo right; a `--progress-height` accent line on its bottom edge scales on X. The stage is a size container; the card is `clamp(--card-min-w, min(100cqw − 64px, (100cqh − 76px) × 14/9), --card-max-w)` wide, aspect `--card-aspect`, centred both ways. Controls row below: a `--warning-line` slot, then `--answer-height` buttons in a `--controls-width` column, padding-bottom `--s6`; the row never changes height.
 - Card: two faces (front, back rotated 180°, `backface-visibility: hidden`), each `--card-bg`, hairline `--card-border`, `--card-radius`, `--shadow-card`, padding `--s4 --s5`. Head: box chip left ("Box n", `--text-subhead`, 16 % box-colour fill, label mixed 70 % box colour), deck name right (`--text-callout`, `--label-secondary`, ellipsis). Body: `--text-card`, centred, scrolls inside the card. Foot: "Question" / "Answer" in `--text-footnote`, `--label-tertiary`.
 - Stack: active card plus up to 2 visible behind it (origin bottom centre; `translateY(6px) scale(.96)` and `translateY(12px) scale(.92)`, dimmed by `--stack-dim` at 50 % / 100 %); a 4th card is pre-rendered hidden at `translateY(18px) scale(.88)`, opacity 0.
-- Reveal: Space, click on the card, or Show Answer flips on Y (`--dur-flip`). Right (2/→) flies right +8° with a green 2 px inset edge and soft glow; Wrong (1/←) left −8°, red. The next card rises (`--dur-rise`); new cards (including a wrong card coming back) deal in from the back of the stack. Drag (after reveal): tilt 12° per card width, tint opacity grows to the commit point at 35 % of the width; otherwise it springs back. Undo flies the card back in from the side it left, front up. Hover: lift −2 px and `--shadow-card-hover`.
+- Reveal: Space, click on the card, or Show Answer flips on Y (`--dur-flip`). Right (2/→) flies right +8° with a green `--edge-width` inset edge (no glow); Wrong (1/←) left −8°, red. The next card rises (`--dur-rise`); new cards (including a wrong card coming back) deal in from the back of the stack. Drag (after reveal): tilt 12° per card width, tint opacity grows to the commit point at 35 % of the width; otherwise it springs back. Undo flies the card back in from the side it left, front up. Hover: lift −2 px and `--shadow-card-hover`.
 - Buttons: Show Answer full width; Wrong / Right equal halves `--s3` apart, 10 % red/green fill over `--bg-control`, 30 % border, coloured label; key hints in a hairline `kbd`.
 - End: the summary flips in on the same card: "Session Complete" (`--text-title1`), Right/Wrong tallies (`--text-large-title`, green/red), a box-movement line, Done and Study Again (`.btn-primary`). Study Again runs a practice round of the same cards that saves nothing.
 - Reduced motion: no flip, tilt, flight or lift; faces, fly-off and entrances crossfade over `--dur-fade`.
 
+**7.11 Notices.** Fixed bottom-right, `--s4` from the edges, max width `--notice-width`, stacked `--s2` apart, `role="status"`. Each is `--bg-sheet`, hairline `--separator`, radius `--radius-sheet`, `--shadow-sheet`, padding `--s2 --s2 --s2 --s3`, `--text-callout`, with one `.btn` on the right. "Update available" + "Reload" when a new version is waiting; "The browser may clear this library when space runs low. Export regularly to keep a backup." + "OK" once if persistent storage is refused. Both are hidden on the study route; Reload never happens on its own.
+
+**7.12 Text rules.** Title case for window, toolbar, sheet and alert titles, buttons (including icon-button names in `aria-label` and `title`), segment labels and empty-state titles. Sentence case for field labels, captions, messages, status lines, notices and help tags on buttons that already show a label. Ellipsis (…) on any command that opens a sheet or alert. Typographic apostrophes and quotes (’ “ ”). Every count goes through `fmt()` / `count()` in `src/lib/format.ts` (locale thousands separators, singular/plural). The app's name is "Leitner".
+
 ## 8. Audit checklist (used by T2.9)
-Per screen: only tokens, no raw colours or sizes; type scale matches; 4 pt grid; controls at least 28 px, answer buttons 44 px; no gradients, glows, emoji; shadow only on alerts and sheets; light and dark both legible; increased contrast raises separators and labels; reduced motion removes all transitions; every control reachable by Tab in a sensible order; visible focus ring everywhere; Esc closes sheets and alerts; Cancel is the default in every destructive alert and Delete is never focused; every list has an empty state; no page scroll, no header or footer; shortcuts do not shadow browser shortcuts; text truncates with an ellipsis and has a `title`.
+Per screen: only tokens, no raw colours or sizes; type scale matches; 4 pt grid; controls at least 28 px, answer buttons 44 px; no gradients, glows, emoji; shadow only on alerts and sheets; light and dark both legible; increased contrast raises separators and labels; reduced motion removes all transitions; every control reachable by Tab in a sensible order; visible focus ring everywhere; Esc closes sheets and alerts; Cancel is the default in every destructive alert and Delete is never focused; every list has an empty state; no page scroll, no header or footer; shortcuts do not shadow browser shortcuts; text truncates with an ellipsis and has a `title`; numbers have thousands separators; title/sentence case per §7.12.

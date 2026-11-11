@@ -9,6 +9,7 @@
   import { review } from '../lib/leitner';
   import { go } from '../lib/router.svelte';
   import { deckStore, refreshDecks } from '../lib/decks.svelte';
+  import { count, fmt } from '../lib/format';
 
   let { deckId }: { deckId: number } = $props();
 
@@ -115,8 +116,8 @@
   const movesLine = $derived.by(() => {
     if (practice) return 'Practice round: boxes weren’t changed.';
     const parts: string[] = [];
-    if (stats.up > 0) parts.push(`${stats.up} ${stats.up === 1 ? 'card' : 'cards'} moved up`);
-    if (stats.down > 0) parts.push(`${stats.down} back to Box 1`);
+    if (stats.up > 0) parts.push(`${count(stats.up, 'card')} moved up`);
+    if (stats.down > 0) parts.push(`${fmt(stats.down)} back to Box 1`);
     return parts.length > 0 ? parts.join(' · ') : 'No cards changed boxes.';
   });
 
@@ -281,7 +282,7 @@
             saveError = null;
           },
           (e: unknown) => {
-            saveError = `Couldn't save the last answer: ${errorMessage(e)}`;
+            saveError = `Couldn’t save the last answer: ${errorMessage(e)}`;
           },
         );
       }
@@ -314,7 +315,7 @@
         await call('study.undo', { reviewId });
         saveError = null;
       } catch (e) {
-        saveError = `Couldn't undo the last answer: ${errorMessage(e)}`;
+        saveError = `Couldn’t undo the last answer: ${errorMessage(e)}`;
       }
     })();
     pendingUndo = run;
@@ -541,8 +542,8 @@
     </div>
     <p class="counter" aria-live="polite">
       {#if total > 0}
-        {#key answered}<span class="num">{answered}</span>{/key}
-        <span class="of">of {total}</span>
+        {#key answered}<span class="num">{fmt(answered)}</span>{/key}
+        <span class="of">of {fmt(total)}</span>
       {/if}
     </p>
     <div class="bar-end">
@@ -639,11 +640,11 @@
                     </h2>
                     <div class="tallies">
                       <div class="tally">
-                        <span class="tally-n tally-right">{stats.right}</span>
+                        <span class="tally-n tally-right">{fmt(stats.right)}</span>
                         <span class="tally-l">Right</span>
                       </div>
                       <div class="tally">
-                        <span class="tally-n tally-wrong">{stats.wrong}</span>
+                        <span class="tally-n tally-wrong">{fmt(stats.wrong)}</span>
                         <span class="tally-l">Wrong</span>
                       </div>
                     </div>
@@ -671,7 +672,7 @@
       </div>
     {:else if view === 'error'}
       <div class="empty-state" role="alert">
-        <p class="empty-state-title">Couldn't Load Cards</p>
+        <p class="empty-state-title">Couldn’t Load Cards</p>
         <p class="empty-state-message">{loadError}</p>
         <button type="button" class="btn" onclick={() => void exit()}>Back to Deck</button>
       </div>
@@ -689,7 +690,7 @@
       {#if saveError}
         {saveError}
       {:else if loadError && view === 'card'}
-        Couldn't load more cards: {loadError}
+        Couldn’t load more cards: {loadError}
       {/if}
     </p>
     <div class="buttons">
@@ -1066,16 +1067,12 @@
   }
 
   .tint.ok {
-    box-shadow:
-      inset 0 0 0 2px var(--green),
-      0 0 24px color-mix(in srgb, var(--green) 35%, transparent);
+    box-shadow: inset 0 0 0 var(--edge-width) var(--green);
     background: color-mix(in srgb, var(--green) 6%, transparent);
   }
 
   .tint.bad {
-    box-shadow:
-      inset 0 0 0 2px var(--red),
-      0 0 24px color-mix(in srgb, var(--red) 35%, transparent);
+    box-shadow: inset 0 0 0 var(--edge-width) var(--red);
     background: color-mix(in srgb, var(--red) 6%, transparent);
   }
 

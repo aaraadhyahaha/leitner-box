@@ -9,7 +9,7 @@
   <div class="toolbar-titles">
     <h1 class="toolbar-title" {title}>{title}</h1>
     {#if subtitle}
-      <p class="toolbar-subtitle">{subtitle}</p>
+      <p class="toolbar-subtitle" title={subtitle}>{subtitle}</p>
     {/if}
   </div>
   <div class="toolbar-actions">

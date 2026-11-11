@@ -80,6 +80,7 @@
 <style>
   .sheet {
     margin: auto;
+    text-align: start; /* don't inherit centring from an empty state that opened it */
     width: var(--sheet-width);
     max-width: calc(100vw - var(--s8));
     max-height: var(--sheet-max-height);

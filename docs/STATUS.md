@@ -25,7 +25,7 @@ Waves: D = T2.B, T2.C in parallel. E = T2.1, T2.3, T2.5, T2.6, T2.7 in parallel.
 - [x] T2.6 Export (wave E)
 - [x] T2.7 PWA and offline: verified in headless Chrome 157 (offline reload, import, study; update toast)
 - [x] T2.8 100k performance check (numbers below)
-- [ ] T2.9 HIG audit
+- [x] T2.9 HIG audit: headless Chrome 157, light/dark, increased contrast, reduced motion, keyboard only (fixes below; Firefox not re-run)
 
 ## Performance (T2.8)
 Headless Chrome 157, production build, fresh profile, 100k cards in 10 decks (largest 39,709). Medians of 20 runs, measured on the main thread around `call()` (includes the worker round trip). Rerun: `npm run build`, `npm run preview`, open `/?perf`, then `__perf.importFile(file)`, `__perf.queries()`, `__perf.scroll()` (see `src/lib/perf.ts`).
@@ -45,6 +45,21 @@ Headless Chrome 157, production build, fresh profile, 100k cards in 10 decks (la
 | Next study card: render front + back | < 16 ms | 0.59 ms | 0.59 ms |
 | Next study card: `study.answer` / `study.due` 20 | < 16 ms | 0.6 / 0.5 ms | 0.5 / 0.3 ms |
 | List scrolling, 400 px per frame for 5 s | 60 fps | stuck after 200 rows (paging bug) | 120,400 px (22 pages), worst frame 16.8 ms, 0% over 20 ms |
+
+## HIG audit fixes (T2.9)
+- Counts had no thousands separators (deck subtitle, sidebar badge, segments, selection/matching, import preview, Imports view, study counter and summary): new `src/lib/format.ts` (`fmt`, `count`).
+- Import sheet opened from the home empty state inherited `text-align: center`: `.sheet` resets it.
+- `.empty-state .btn` margin leaked into sheet buttons (file name misaligned): now `.empty-state > .btn`.
+- Search "Clear" button was 20 px: hit area is now the 28 px field height, glyph unchanged.
+- Study answer edge had a 24 px glow (no glows allowed): removed, 2 px edge kept as `--edge-width`.
+- Increased contrast didn't raise `--label-tertiary` (footnotes, placeholders): now alpha 0.55.
+- Disabled opacity was a raw `0.4` in base.css: now `--opacity-disabled`.
+- Truncated text without a tooltip: toolbar subtitle, import file name and preview deck names now have `title`.
+- Title case: "Clear search" → "Clear Search"; Imports row delete button is "Delete Import…" (opens an alert).
+- Straight apostrophes in "Couldn't …" (App, study view): now ’ like the rest.
+- App name was "Leitner Box" in toolbars and "Leitner" in the manifest: now "Leitner" everywhere.
+- Checked, no change: every destructive action (cards, deck, import batch) confirms with Cancel focused; focus ring is a solid 3 px on every control; every list has an empty state; Esc closes sheets and alerts; reduced motion crossfades the study card.
+- Accepted: segmented-control segments are 26 px inside the 28 px control (as in NSSegmentedControl); the notice toast uses the sheet shadow (UI.md §7.11).
 
 ## Decisions (one line each)
 - 2026-11-11 Intervals are 1/2/4/8/16 days; new cards are due on the day they are added.
@@ -83,7 +98,7 @@ Headless Chrome 157, production build, fresh profile, 100k cards in 10 decks (la
 - 2026-11-11 Undo keys are Ctrl/⌘+Z and U (replaces "U undo" above); undo is one level deep.
 - 2026-11-11 PWA uses a hand-written service worker built by a Vite plugin; `vite-plugin-pwa` dropped (Vite 8 peer risk, no new dependency).
 - 2026-11-11 Deck create/rename ship in T2.4 with the card editor.
-- 2026-11-11 Chromium is not installed; T1.10, T2.7, T2.8 and T2.9 need it, otherwise they run in Firefox only.
+- 2026-11-11 Chromium is not installed; T1.10, T2.7, T2.8 and T2.9 need it, otherwise they run in Firefox only. (Superseded: Google Chrome 157 is installed, see below.)
 - 2026-11-11 card-ops SELECTs prefix columns with `c.` (cards_fts has front/back/tags too); create/update run in a transaction; renameDeck on an unknown id throws `Deck not found`.
 - 2026-11-11 `card.list` returns `next` whenever a page is full, so an exactly-full last page is followed by one empty page.
 - 2026-11-11 `.list-row` focused-selection colours apply only inside a focused `[role="listbox"]`; SearchField Esc stops propagation; Sheet `onclose` fires once per close however it closes.
@@ -104,3 +119,4 @@ Headless Chrome 157, production build, fresh profile, 100k cards in 10 decks (la
 - 2026-11-11 Card list `next` cursor is `$state.raw`: a `$state` proxy can't be posted to the worker, which broke loading page 2.
 - 2026-11-11 The "N matching" count starts one task after the list's page request; a common-term count (~28 ms) is accepted since it never delays results.
 - 2026-11-11 The service worker ignores `.jsonl`; headless Chrome fails `fetch()` of an 18 MB file, so the harness imports via a file input.
+- 2026-11-11 UI.md §7.11 (notices) and §7.12 (text rules: title/sentence case, ellipsis, typographic quotes, `fmt()` for counts) added in T2.9.
