@@ -10,7 +10,7 @@
 - [x] T1.7 Database worker, operations and client
 - [x] T1.8 App shell, sidebar, import, deck view (wave C)
 - [x] T1.9 Study view (wave C)
-- [ ] T1.10 MVP smoke test (orchestrator)
+- [ ] T1.10 MVP smoke test (orchestrator): build OK, 81 tests pass; headless Firefox renders the shell. Interactive pass (import, study, persistence, dark mode, Chromium) still to do; no Chromium on this machine.
 
 ## Tier 2
 - [ ] T2.0 Extend UI.md
