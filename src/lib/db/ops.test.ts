@@ -60,7 +60,7 @@ describe('runImport', () => {
     expect(r.errorCount).toBe(2);
     expect(r.errors.map((e) => e.line)).toEqual([2, 4]);
     expect(r.batchId).not.toBeNull();
-    expect(r.decks).toEqual([{ name: 'Default', added: 1 }, { name: 'Chem', added: 1 }]);
+    expect(r.decks).toEqual([{ name: 'Default', added: 1, isNew: true }, { name: 'Chem', added: 1, isNew: true }]);
     expect(count('SELECT COUNT(*) FROM cards')).toBe(2);
     expect(count(`SELECT card_count FROM batches WHERE id = ${r.batchId}`)).toBe(2);
     expect(db.selectValue("SELECT tags FROM cards WHERE front = 'x'")).toBe('t1 t2');
@@ -95,12 +95,32 @@ describe('runImport', () => {
       { deck: 'bio', front: 'c', back: 'd' },
     ]));
     expect(count('SELECT COUNT(*) FROM decks')).toBe(1);
-    expect(r.decks).toEqual([{ name: 'Bio', added: 2 }]);
+    expect(r.decks).toEqual([{ name: 'Bio', added: 2, isNew: true }]);
   });
 
   it('falls back to Imported when the default deck is blank', async () => {
     const r = await importText(jsonl([{ front: 'a', back: 'b' }]), { defaultDeck: '  ' });
-    expect(r.decks).toEqual([{ name: 'Imported', added: 1 }]);
+    expect(r.decks).toEqual([{ name: 'Imported', added: 1, isNew: true }]);
+  });
+
+  it('reports isNew true on first import and false on the second', async () => {
+    const first = await importText(jsonl([{ deck: 'N', front: 'a', back: 'b' }]));
+    expect(first.decks).toEqual([{ name: 'N', added: 1, isNew: true }]);
+    const second = await importText(jsonl([{ deck: 'n', front: 'c', back: 'd' }]));
+    expect(second.decks).toEqual([{ name: 'N', added: 1, isNew: false }]);
+  });
+
+  it('returns a sample of at most 20 added cards with line numbers', async () => {
+    const rows = [{ front: 'dup', back: 'x' }, { front: 'dup', back: 'x' }, { front: 'bad' },
+      ...Array.from({ length: 30 }, (_, i) => ({ front: `f${i}`, back: `b${i}` }))];
+    const r = await importText(jsonl(rows));
+    expect(r.added).toBe(31);
+    expect(r.sample).toHaveLength(20);
+    expect(r.sample[0]).toEqual({ line: 1, front: 'dup', back: 'x' });
+    expect(r.sample[1]).toEqual({ line: 4, front: 'f0', back: 'b0' });
+    expect(r.sample[19]).toEqual({ line: 22, front: 'f18', back: 'b18' });
+    const small = await importText(jsonl([{ front: 'only', back: 'one' }]));
+    expect(small.sample).toEqual([{ line: 1, front: 'only', back: 'one' }]);
   });
 
   it('indexes imported cards for FTS', async () => {

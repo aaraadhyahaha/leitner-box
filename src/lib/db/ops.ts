@@ -3,19 +3,36 @@ import { review } from '../leitner';
 import { cardHash, type ParsedLine } from '../import-parse';
 import { SCHEMA_V1 } from './schema';
 import type {
-  AnswerResult, Box, Card, DeckSummary, DueCursor, ImportError, ImportResult,
+  AnswerResult, Box, Card, DeckSummary, DueCursor, ImportError, ImportResult, ImportSample,
 } from './types';
 
 const MAX_ERRORS = 100;
+const MAX_SAMPLE = 20;
 
-function num(v: SqlValue | undefined): number {
+export function num(v: SqlValue | undefined): number {
   if (typeof v === 'number') return v;
   if (typeof v === 'bigint') return Number(v);
   return 0;
 }
 
-function splitTags(s: SqlValue): string[] {
+export function splitTags(s: SqlValue): string[] {
   return typeof s === 'string' ? s.split(' ').filter((t) => t !== '') : [];
+}
+
+export const CARD_COLS = 'id, deck_id, batch_id, front, back, tags, box, due_day';
+
+export function toCard(row: SqlValue[]): Card {
+  const [id, dId, bId, front, back, tags, box, dueDay] = row;
+  return {
+    id: num(id),
+    deckId: num(dId),
+    batchId: bId === null || bId === undefined ? null : num(bId),
+    front: String(front),
+    back: String(back),
+    tags: splitTags(tags ?? null),
+    box: num(box) as Box,
+    dueDay: num(dueDay),
+  };
 }
 
 export function migrate(db: Database): void {
@@ -64,7 +81,8 @@ export async function runImport(
   let duplicates = 0;
   let errorCount = 0;
   const errors: ImportError[] = [];
-  const deckIds = new Map<string, { id: number; name: string; added: number }>();
+  const sample: ImportSample[] = [];
+  const deckIds = new Map<string, { id: number; name: string; added: number; isNew: boolean }>();
 
   const stmts: PreparedStatement[] = [];
   db.exec('BEGIN');
@@ -88,10 +106,11 @@ export async function runImport(
       let d = deckIds.get(key);
       if (!d) {
         insDeck.bind([raw, opts.now]).step();
+        const isNew = db.changes() > 0;
         insDeck.reset(true);
         selDeck.bind([raw]);
         if (!selDeck.step()) throw new Error(`Deck not found after insert: ${raw}`);
-        d = { id: num(selDeck.get(0)), name: String(selDeck.get(1)), added: 0 };
+        d = { id: num(selDeck.get(0)), name: String(selDeck.get(1)), added: 0, isNew };
         selDeck.reset(true);
         deckIds.set(key, d);
       }
@@ -114,6 +133,7 @@ export async function runImport(
       if (db.changes() > 0) {
         added++;
         deck.added++;
+        if (sample.length < MAX_SAMPLE) sample.push({ line: item.line, front: c.front, back: c.back });
       } else {
         duplicates++;
       }
@@ -130,7 +150,8 @@ export async function runImport(
       committed: opts.commit,
       batchId: opts.commit && added > 0 ? batchId : null,
       added, duplicates, errorCount, errors,
-      decks: [...deckIds.values()].map((d) => ({ name: d.name, added: d.added })),
+      decks: [...deckIds.values()].map((d) => ({ name: d.name, added: d.added, isNew: d.isNew })),
+      sample,
     };
   } catch (e) {
     try { db.exec('ROLLBACK'); } catch { /* already rolled back */ }
@@ -143,21 +164,12 @@ export async function runImport(
 export function dueCards(
   db: Database, deckId: number, today: number, after: DueCursor | null, limit: number,
 ): Card[] {
-  const base = 'SELECT id, deck_id, batch_id, front, back, tags, box, due_day FROM cards WHERE deck_id = ? AND due_day <= ?';
+  const base = `SELECT ${CARD_COLS} FROM cards WHERE deck_id = ? AND due_day <= ?`;
   const rows = after
     ? db.selectArrays(`${base} AND (due_day, id) > (?, ?) ORDER BY due_day, id LIMIT ?`,
       [deckId, today, after.dueDay, after.id, limit])
     : db.selectArrays(`${base} ORDER BY due_day, id LIMIT ?`, [deckId, today, limit]);
-  return rows.map(([id, dId, bId, front, back, tags, box, dueDay]) => ({
-    id: num(id),
-    deckId: num(dId),
-    batchId: bId === null ? null : num(bId),
-    front: String(front),
-    back: String(back),
-    tags: splitTags(tags),
-    box: num(box) as Box,
-    dueDay: num(dueDay),
-  }));
+  return rows.map(toCard);
 }
 
 export function answerCard(
