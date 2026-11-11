@@ -34,6 +34,13 @@ Local-first web app (runs in the browser, works offline) for Leitner-box flashca
 
 Out of scope: sync, accounts, images, audio, stats dashboards, nested decks.
 
+## File map
+- Root: `index.html`, `package.json`, `vite.config.ts`, `svelte.config.js`, `tsconfig.json`, `.gitignore`
+- `src/main.ts` (entry, persist()), `src/App.svelte`, `src/vite-env.d.ts`, `src/types/shims.d.ts`
+- `src/lib/db/types.ts`: the shared API contract (PLAN §1.3)
+- `src/styles/tokens.css`, `src/styles/base.css`
+- `src/components/StudyView.svelte`
+
 ## Performance (must handle 100k+ cards)
 - SQLite WASM (`@sqlite.org/sqlite-wasm`) running in a **Web Worker**, stored in OPFS through the `opfs-sahpool` VFS (no COOP/COEP headers needed). Indexes on (deck, due day), and FTS5 for search. Do all bulk writes in one transaction with prepared statements.
 - The main thread only renders. All DB work and file parsing happen in the worker, behind one typed request/response API (`src/lib/db/client.ts`). Never block the main thread.

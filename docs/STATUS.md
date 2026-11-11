@@ -1,7 +1,7 @@
 # Status
 
 ## Tier 1 (MVP)
-- [ ] T1.1 Scaffold and contracts
+- [x] T1.1 Scaffold and contracts
 - [ ] T1.2 Leitner and session logic (wave A)
 - [ ] T1.3 Import parser (wave A)
 - [ ] T1.4 Rendering (wave A)
@@ -40,3 +40,5 @@
 - 2026-11-11 Study keys: Space reveal, Right arrow or 2 = Right, Left arrow or 1 = Wrong, Esc exit, U undo.
 - 2026-11-11 Bare `\ce{…}` and `\pu{…}` outside `$…$` render as inline math.
 - 2026-11-11 DB operations live in `ops.ts` and are tested in Node against in-memory SQLite.
+- 2026-11-11 TypeScript pinned to ~6 (6.0.3): svelte-check 4.7.8 doesn't support TS 7 without the tsgo setup.
+- 2026-11-11 `src/types/shims.d.ts` declares `*.svelte` modules (needed for `.ts` imports under TS 6); katex ships its own types, so no `@types/katex`.
