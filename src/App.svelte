@@ -6,6 +6,7 @@
   import DeckView from './components/DeckView.svelte';
   import StudyView from './components/StudyView.svelte';
   import ImportsView from './components/ImportsView.svelte';
+  import Notices from './components/Notices.svelte';
   import { deckStore, refreshDecks } from './lib/decks.svelte';
   import { router } from './lib/router.svelte';
 
@@ -61,6 +62,7 @@
     {/if}
   </main>
 </div>
+<Notices />
 
 <style>
   .window {

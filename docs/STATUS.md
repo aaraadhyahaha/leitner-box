@@ -10,7 +10,7 @@
 - [x] T1.7 Database worker, operations and client
 - [x] T1.8 App shell, sidebar, import, deck view (wave C)
 - [x] T1.9 Study view (wave C)
-- [ ] T1.10 MVP smoke test (orchestrator): build OK, 81 tests pass; headless Firefox renders the shell. Interactive pass (import, study, persistence, dark mode, Chromium) still to do; no Chromium on this machine.
+- [x] T1.10 MVP smoke test: import, study and persistence pass in headless Chrome (T2.7 run).
 
 ## Tier 2
 Waves: D = T2.B, T2.C in parallel. E = T2.1, T2.3, T2.5, T2.6, T2.7 in parallel. F = T2.2. G = T2.4. Then T2.8, T2.9.
@@ -23,7 +23,7 @@ Waves: D = T2.B, T2.C in parallel. E = T2.1, T2.3, T2.5, T2.6, T2.7 in parallel.
 - [x] T2.4 Card and deck editor (wave G)
 - [x] T2.5 Undo last review (wave E)
 - [x] T2.6 Export (wave E)
-- [ ] T2.7 PWA and offline (wave E)
+- [x] T2.7 PWA and offline: verified in headless Chrome 157 (offline reload, import, study; update toast)
 - [ ] T2.8 100k performance check
 - [ ] T2.9 HIG audit
 
@@ -74,3 +74,8 @@ Waves: D = T2.B, T2.C in parallel. E = T2.1, T2.3, T2.5, T2.6, T2.7 in parallel.
 - 2026-11-11 mhchem throws `[code, message]` arrays, so warnings take the last element; most malformed `\ce` input renders without error. Import is disabled while a preview is pending, so it never commits against a stale preview.
 - 2026-11-11 Shift-range in `ids` mode replaces the selection with anchor..index (so Shift+Up/Down can shrink it); list keys act only while the listbox has focus; an `all`-mode Delete waits for the matching count.
 - 2026-11-11 DeckView window keys (Enter, `/`, N) are ignored while any dialog is open; the editor's Ctrl/⌘+Enter listener is attached via `$effect` to avoid a svelte a11y warning.
+- 2026-11-11 Google Chrome 157 is installed (`/usr/bin/google-chrome-stable`); browser checks use a throwaway playwright-core outside the repo.
+- 2026-11-11 PWA: app is named "Leitner"; monochrome SVG icon; the SW plugin lives in `scripts/sw-manifest.mjs` (no @types/node for vite.config.ts).
+- 2026-11-11 SW precaches everything except .ttf/.woff, maps, .jsonl and the smiles-drawer chunk, which is runtime-cached on first use.
+- 2026-11-11 SW waits (no auto skipWaiting); `Notices.svelte` shows "Update available · Reload", hidden on the study route; Reload posts SKIP_WAITING then reloads on controllerchange.
+- 2026-11-11 If `storage.persist()` is refused, a one-time notice suggests exports (flag in localStorage `leitner.persistNoticeShown`).

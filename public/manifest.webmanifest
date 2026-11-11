@@ -1,0 +1,13 @@
+{
+  "name": "Leitner",
+  "short_name": "Leitner",
+  "description": "Offline Leitner-box flashcards.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#FFFFFF",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

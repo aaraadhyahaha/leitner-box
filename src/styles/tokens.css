@@ -72,6 +72,7 @@
   --filter-bar-height: 36px;
   --search-width: 200px;
   --textarea-min: 96px;
+  --notice-width: 360px;
   --selection: var(--accent);
   --on-selection: var(--on-accent);
 
