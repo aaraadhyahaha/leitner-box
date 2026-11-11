@@ -17,7 +17,7 @@ Waves: D = T2.B, T2.C in parallel. E = T2.1, T2.3, T2.5, T2.6, T2.7 in parallel.
 - [x] T2.A Extend UI.md (§7 screens, §8 audit checklist)
 - [x] T2.B API contract and DB ops (wave D)
 - [x] T2.C UI primitives: tokens, Sheet, Segmented, SearchField (wave D)
-- [ ] T2.1 Card list, search, box filter (wave E)
+- [x] T2.1 Card list, search, box filter (wave E)
 - [ ] T2.2 Bulk delete and Imports (wave F)
 - [ ] T2.3 Import preview sheet (wave E)
 - [ ] T2.4 Card and deck editor (wave G)
@@ -70,3 +70,4 @@ Waves: D = T2.B, T2.C in parallel. E = T2.1, T2.3, T2.5, T2.6, T2.7 in parallel.
 - 2026-11-11 `.list-row` focused-selection colours apply only inside a focused `[role="listbox"]`; SearchField Esc stops propagation; Sheet `onclose` fires once per close however it closes.
 - 2026-11-11 Export of an unknown deck or a name that sanitises to empty falls back to `leitner-box-YYYY-MM-DD.jsonl`; the object URL is revoked after 1 s for Firefox.
 - 2026-11-11 Undo: cards pushed after the snapshot survive; a persisted answer waits for a running `study.undo` so it never lands first; if the original save failed, undo skips the server call.
+- 2026-11-11 VirtualList fires `onnearend` even on an empty list; callers guard against duplicate loads. Filter bar and list share a `.deck-body` wrapper; "N matching" also refetches on `refreshKey`.
