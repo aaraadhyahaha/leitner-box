@@ -8,7 +8,7 @@
 - [x] T1.5 Tokens, base styles, Alert, Toolbar (wave A)
 - [x] T1.6 Import format doc and sample file (wave A)
 - [x] T1.7 Database worker, operations and client
-- [ ] T1.8 App shell, sidebar, import, deck view (wave C)
+- [x] T1.8 App shell, sidebar, import, deck view (wave C)
 - [x] T1.9 Study view (wave C)
 - [ ] T1.10 MVP smoke test (orchestrator)
 
@@ -49,3 +49,5 @@
 - 2026-11-11 SQLite WASM runs under Node, so `ops.test.ts` runs for real; worker handlers take `(db, args)` from the init promise.
 - 2026-11-11 An import with a blank default deck and no `deck` field goes to deck `Imported`.
 - 2026-11-11 Study: Space is captured only while a card is shown; a failed page fetch shows an inline warning and studying continues.
+- 2026-11-11 Sidebar is a listbox with one tab stop; row clicks are handled on the listbox (per-option handlers trip svelte a11y warnings).
+- 2026-11-11 svelte-check scans ~4.6k files because `@lucide/svelte` ships one .svelte file per icon; acceptable for now.
