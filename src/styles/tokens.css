@@ -1,1 +1,125 @@
 /* Design tokens: all colours and sizes live here (see docs/UI.md). */
+
+:root {
+  color-scheme: light dark;
+
+  /* 1. Type */
+  --font-system: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter Variable", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --text-large-title: 400 26px/32px;
+  --text-title1: 400 22px/26px;
+  --text-title2: 400 17px/22px;
+  --text-title3: 400 15px/20px;
+  --text-headline: 600 13px/16px;
+  --text-body: 400 13px/16px;
+  --text-callout: 400 12px/15px;
+  --text-subhead: 600 11px/14px;
+  --text-footnote: 400 10px/13px;
+  --text-card: 400 17px/26px;
+
+  /* 2. Colour (light) */
+  --label: rgba(0, 0, 0, 0.85);
+  --label-secondary: rgba(0, 0, 0, 0.50);
+  --label-tertiary: rgba(0, 0, 0, 0.26);
+  --bg-content: #FFFFFF;
+  --bg-sidebar: #F2F2F2;
+  --bg-sheet: #F6F6F6;
+  --bg-control: #FFFFFF;
+  --bg-control-pressed: rgba(0, 0, 0, 0.06);
+  --fill-hover: rgba(0, 0, 0, 0.05);
+  --fill-selected: rgba(0, 0, 0, 0.10);
+  --separator: rgba(0, 0, 0, 0.10);
+  --control-border: rgba(0, 0, 0, 0.15);
+  --accent: #007AFF;
+  --on-accent: #FFFFFF;
+  --red: #FF3B30;
+  --green: #28CD41;
+  --orange: #FF9500;
+  --gray: #8E8E93;
+  --focus-ring: rgba(0, 122, 255, 0.55);
+  --backdrop: rgba(0, 0, 0, 0.20);
+  --shadow-sheet: 0 12px 40px rgba(0, 0, 0, 0.25);
+
+  /* 3. Space, size, shape */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 20px;
+  --s6: 24px;
+  --s7: 28px;
+  --s8: 32px;
+  --sidebar-width: 240px;
+  --toolbar-height: 52px;
+  --row-height: 28px;
+  --control-height: 28px;
+  --answer-height: 44px;
+  --content-max: 680px;
+  --alert-width: 260px;
+  --radius-control: 6px;
+  --radius-row: 5px;
+  --radius-sheet: 10px;
+  --hairline: 1px;
+  --focus-width: 3px;
+  --icon: 16px;
+  --btn-large-min: 140px;
+
+  /* 4. Motion */
+  --dur-fast: 120ms;
+  --dur-sheet: 220ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --label: rgba(255, 255, 255, 0.85);
+    --label-secondary: rgba(255, 255, 255, 0.55);
+    --label-tertiary: rgba(255, 255, 255, 0.25);
+    --bg-content: #1E1E1E;
+    --bg-sidebar: #2A2A2A;
+    --bg-sheet: #323232;
+    --bg-control: rgba(255, 255, 255, 0.12);
+    --bg-control-pressed: rgba(255, 255, 255, 0.20);
+    --fill-hover: rgba(255, 255, 255, 0.07);
+    --fill-selected: rgba(255, 255, 255, 0.14);
+    --separator: rgba(255, 255, 255, 0.10);
+    --control-border: rgba(255, 255, 255, 0.08);
+    --accent: #0A84FF;
+    --on-accent: #FFFFFF;
+    --red: #FF453A;
+    --green: #32D74B;
+    --orange: #FF9F0A;
+    --gray: #98989D;
+    --focus-ring: rgba(10, 132, 255, 0.65);
+    --backdrop: rgba(0, 0, 0, 0.45);
+    --shadow-sheet: 0 12px 40px rgba(0, 0, 0, 0.60);
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --label: rgba(0, 0, 0, 1);
+    --label-secondary: rgba(0, 0, 0, 0.75);
+    --separator: rgba(0, 0, 0, 0.40);
+    --control-border: rgba(0, 0, 0, 0.40);
+    --focus-ring: var(--accent);
+  }
+}
+
+@media (prefers-contrast: more) and (prefers-color-scheme: dark) {
+  :root {
+    --label: rgba(255, 255, 255, 1);
+    --label-secondary: rgba(255, 255, 255, 0.75);
+    --separator: rgba(255, 255, 255, 0.40);
+    --control-border: rgba(255, 255, 255, 0.40);
+    --focus-ring: var(--accent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur-sheet: 0ms;
+  }
+}

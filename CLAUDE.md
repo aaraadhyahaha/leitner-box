@@ -40,7 +40,8 @@ Out of scope: sync, accounts, images, audio, stats dashboards, nested decks.
 - `src/lib/db/types.ts`: the shared API contract (PLAN §1.3)
 - `src/styles/tokens.css`, `src/styles/base.css`
 - `src/lib/leitner.ts` (intervals, dayNumber, review), `src/lib/session.ts` (StudySession queue), `src/lib/import-parse.ts` (validate, cardHash, streaming readCards), each with `*.test.ts`
-- `src/components/StudyView.svelte`
+- `src/lib/render/`: `tokenize.ts`, `render.ts` (KaTeX + mhchem, LRU cache), `smiles.ts` (lazy smiles-drawer), `RichText.svelte`, with tests
+- `src/components/Alert.svelte` (dialog, Cancel default), `Toolbar.svelte`, `StudyView.svelte`
 - `docs/IMPORT_FORMAT.md` (format + AI prompt), `fixtures/sample.jsonl` (10 valid, 1 dup, 1 error)
 
 ## Performance (must handle 100k+ cards)

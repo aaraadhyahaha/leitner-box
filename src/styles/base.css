@@ -1,1 +1,169 @@
-/* Base element styles built on tokens.css. */
+/* Base element styles built on tokens.css (see docs/UI.md §5). */
+
+/* Reset */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  overflow: hidden;
+  font: var(--text-body) var(--font-system);
+  color: var(--label);
+  background: var(--bg-content);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+/* Card content and inputs are selectable. */
+input,
+textarea,
+[contenteditable],
+.selectable,
+.card-content {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Focus ring: never removed. */
+:focus-visible {
+  outline: var(--focus-width) solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--control-height);
+  min-height: var(--control-height);
+  padding: 0 var(--s3);
+  border-radius: var(--radius-control);
+  background: var(--bg-control);
+  border: var(--hairline) solid var(--control-border);
+  color: var(--label);
+  font: var(--text-body) var(--font-system);
+  cursor: default;
+  white-space: nowrap;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.btn:active:not(:disabled) {
+  background: var(--bg-control-pressed);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  font: var(--text-headline) var(--font-system);
+  border: none;
+}
+
+.btn-primary:active:not(:disabled) {
+  background: var(--accent);
+  filter: brightness(0.88);
+}
+
+.btn-destructive {
+  color: var(--red);
+}
+
+.btn-toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  background: transparent;
+  border: none;
+  color: var(--label);
+}
+
+.btn-toolbar:hover:not(:disabled) {
+  background: var(--fill-hover);
+}
+
+.btn-toolbar:active:not(:disabled) {
+  background: var(--bg-control-pressed);
+}
+
+.btn-toolbar svg {
+  width: var(--icon);
+  height: var(--icon);
+  flex: none;
+}
+
+.btn-large {
+  height: var(--answer-height);
+  min-height: var(--answer-height);
+  min-width: var(--btn-large-min);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+}
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  height: 100%;
+  padding: var(--s6);
+  text-align: center;
+}
+
+.empty-state-title {
+  font: var(--text-title1) var(--font-system);
+  color: var(--label-secondary);
+}
+
+.empty-state-message {
+  font: var(--text-body) var(--font-system);
+  color: var(--label-tertiary);
+}
+
+.empty-state .btn {
+  margin-top: var(--s2);
+}
+
+/* Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--label-tertiary) transparent;
+}
+
+::-webkit-scrollbar {
+  width: var(--s2);
+  height: var(--s2);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--label-tertiary);
+  border-radius: var(--s1);
+}

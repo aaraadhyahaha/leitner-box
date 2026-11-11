@@ -4,8 +4,8 @@
 - [x] T1.1 Scaffold and contracts
 - [x] T1.2 Leitner and session logic (wave A)
 - [x] T1.3 Import parser (wave A)
-- [ ] T1.4 Rendering (wave A)
-- [ ] T1.5 Tokens, base styles, Alert, Toolbar (wave A)
+- [x] T1.4 Rendering (wave A)
+- [x] T1.5 Tokens, base styles, Alert, Toolbar (wave A)
 - [x] T1.6 Import format doc and sample file (wave A)
 - [ ] T1.7 Database worker, operations and client
 - [ ] T1.8 App shell, sidebar, import, deck view (wave C)
@@ -43,3 +43,6 @@
 - 2026-11-11 TypeScript pinned to ~6 (6.0.3): svelte-check 4.7.8 doesn't support TS 7 without the tsgo setup.
 - 2026-11-11 `src/types/shims.d.ts` declares `*.svelte` modules (needed for `.ts` imports under TS 6); katex ships its own types, so no `@types/katex`.
 - 2026-11-11 Import: `tags: null` and `deck: null` count as absent; `StudySession.push` skips ids already queued.
+- 2026-11-11 `<dialog>`s need `margin: auto` (the reset zeroes it); Alert syncs `open` on the `close` event too.
+- 2026-11-11 A destructive alert with no Cancel focuses the dialog itself, not the button.
+- 2026-11-11 SMILES SVG size is set by `width`/`height` attributes, not CSS; `hydrateSmiles` is untested in Node (no DOM), to verify in T1.10.
