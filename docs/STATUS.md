@@ -18,7 +18,7 @@ Waves: D = T2.B, T2.C in parallel. E = T2.1, T2.3, T2.5, T2.6, T2.7 in parallel.
 - [x] T2.B API contract and DB ops (wave D)
 - [x] T2.C UI primitives: tokens, Sheet, Segmented, SearchField (wave D)
 - [x] T2.1 Card list, search, box filter (wave E)
-- [ ] T2.2 Bulk delete and Imports (wave F)
+- [x] T2.2 Bulk delete and Imports (wave F)
 - [x] T2.3 Import preview sheet (wave E)
 - [ ] T2.4 Card and deck editor (wave G)
 - [x] T2.5 Undo last review (wave E)
@@ -72,3 +72,4 @@ Waves: D = T2.B, T2.C in parallel. E = T2.1, T2.3, T2.5, T2.6, T2.7 in parallel.
 - 2026-11-11 Undo: cards pushed after the snapshot survive; a persisted answer waits for a running `study.undo` so it never lands first; if the original save failed, undo skips the server call.
 - 2026-11-11 VirtualList fires `onnearend` even on an empty list; callers guard against duplicate loads. Filter bar and list share a `.deck-body` wrapper; "N matching" also refetches on `refreshKey`.
 - 2026-11-11 mhchem throws `[code, message]` arrays, so warnings take the last element; most malformed `\ce` input renders without error. Import is disabled while a preview is pending, so it never commits against a stale preview.
+- 2026-11-11 Shift-range in `ids` mode replaces the selection with anchor..index (so Shift+Up/Down can shrink it); list keys act only while the listbox has focus; an `all`-mode Delete waits for the matching count.

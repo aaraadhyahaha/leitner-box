@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { History } from '@lucide/svelte';
   import { deckStore } from '../lib/decks.svelte';
   import { router, go } from '../lib/router.svelte';
 
@@ -17,6 +18,8 @@
   const activeIndex = $derived(
     selectedIndex >= 0 ? selectedIndex : cursor >= 0 && cursor < decks.length ? cursor : -1,
   );
+
+  const importsSelected = $derived(router.route.name === 'imports');
 
   let listEl: HTMLElement | undefined = $state();
 
@@ -98,6 +101,17 @@
       {/each}
     </div>
   {/if}
+  <h2 class="sidebar-header sidebar-section" id="sidebar-library-header">Library</h2>
+  <button
+    type="button"
+    class="sidebar-row sidebar-button"
+    class:selected={importsSelected}
+    aria-current={importsSelected ? 'page' : undefined}
+    onclick={() => go({ name: 'imports' })}
+  >
+    <History size={16} strokeWidth={1.5} aria-hidden="true" />
+    <span class="sidebar-name">Imports</span>
+  </button>
 </nav>
 
 <style>
@@ -116,6 +130,27 @@
     padding: var(--s2);
     font: var(--text-subhead) var(--font-system);
     font-weight: 600;
+    color: var(--label-secondary);
+  }
+
+  .sidebar-section {
+    margin-top: var(--s4);
+  }
+
+  .sidebar-button {
+    flex: none;
+    width: 100%;
+    border: none;
+    background: transparent;
+    text-align: left;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .sidebar-button :global(svg) {
+    flex: none;
+    width: var(--icon);
+    height: var(--icon);
     color: var(--label-secondary);
   }
 

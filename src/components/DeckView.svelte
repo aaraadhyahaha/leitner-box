@@ -4,10 +4,13 @@
   import SearchField from './SearchField.svelte';
   import Segmented from './Segmented.svelte';
   import CardList from './CardList.svelte';
+  import Alert from './Alert.svelte';
+  import { Trash2 } from '@lucide/svelte';
   import { call } from '../lib/db/client';
   import type { Box, CardQuery } from '../lib/db/types';
-  import { deckStore } from '../lib/decks.svelte';
+  import { deckStore, refreshDecks } from '../lib/decks.svelte';
   import { go } from '../lib/router.svelte';
+  import { Selection } from '../lib/selection.svelte';
 
   let { deckId }: { deckId: number } = $props();
 
@@ -36,12 +39,15 @@
     deck ? `${deck.total === 1 ? '1 card' : `${deck.total} cards`} · ${deck.due} due` : '',
   );
 
-  // Reset search and filter when switching decks.
+  const selection = new Selection();
+
+  // Reset search, filter and selection when switching decks.
   let lastDeckId: number | null = null;
   $effect.pre(() => {
     if (lastDeckId !== null && deckId !== lastDeckId) {
       search = '';
       boxValue = 'all';
+      selection.clear();
     }
     lastDeckId = deckId;
   });
@@ -65,6 +71,76 @@
       },
     );
   });
+
+  // Total matching rows: the count when filtering, otherwise the deck total.
+  const total: number | null = $derived(deck ? (filtered ? matching : deck.total) : null);
+  // Selected rows; null while an "all" selection waits for the total.
+  const selectedCount: number | null = $derived(
+    selection.state.mode === 'ids'
+      ? selection.state.ids.size
+      : total === null
+        ? null
+        : selection.count(total),
+  );
+  const hasSelection = $derived(selectedCount === null || selectedCount > 0);
+
+  function cardsLabel(n: number, capital: boolean): string {
+    const word = capital ? (n === 1 ? 'Card' : 'Cards') : n === 1 ? 'card' : 'cards';
+    return `${n} ${word}`;
+  }
+
+  let deleteCardsOpen = $state(false);
+  let deleteCardsTitle = $state('');
+  let deleteDeckOpen = $state(false);
+  let failOpen = $state(false);
+  let failMessage = $state('');
+  let deleting = $state(false);
+
+  function errorText(e: unknown): string {
+    return e instanceof Error ? e.message : String(e);
+  }
+
+  function askDeleteCards() {
+    if (deleting || selectedCount === null || selectedCount === 0) return;
+    deleteCardsTitle = `Delete ${cardsLabel(selectedCount, true)}?`;
+    deleteCardsOpen = true;
+  }
+
+  async function deleteCards() {
+    const req = selection.toRequest(query);
+    if (!req || deleting) return;
+    deleting = true;
+    try {
+      await call('card.delete', req);
+      selection.clear();
+      await refreshDecks();
+    } catch (e) {
+      failMessage = errorText(e);
+      failOpen = true;
+    } finally {
+      deleting = false;
+    }
+  }
+
+  function askDeleteDeck() {
+    if (deleting || !deck) return;
+    deleteDeckOpen = true;
+  }
+
+  async function deleteDeck() {
+    if (deleting) return;
+    deleting = true;
+    try {
+      await call('deck.delete', { id: deckId });
+      await refreshDecks();
+      go({ name: 'home' });
+    } catch (e) {
+      failMessage = errorText(e);
+      failOpen = true;
+    } finally {
+      deleting = false;
+    }
+  }
 
   function study() {
     if (!deck || deck.due === 0) return;
@@ -101,6 +177,16 @@
 {#if deck}
   <Toolbar title={deck.name} {subtitle}>
     <SearchField bind:this={searchField} bind:value={search} placeholder="Search" />
+    <button
+      type="button"
+      class="btn-icon"
+      aria-label="Delete Deck…"
+      title="Delete Deck…"
+      disabled={deleting}
+      onclick={askDeleteDeck}
+    >
+      <Trash2 size={16} strokeWidth={1.5} aria-hidden="true" />
+    </button>
     <ImportButton deckName={deck.name} />
     <button type="button" class="btn btn-primary" disabled={deck.due === 0} onclick={study}>
       Study
@@ -109,14 +195,55 @@
   <div class="deck-body">
     <div class="filter-bar">
       <Segmented bind:value={boxValue} options={boxOptions} label="Box filter" />
-      <p class="filter-status" aria-live="polite">
-        {#if filtered && matching !== null}
-          {matching} matching
-        {/if}
-      </p>
+      {#if hasSelection}
+        <div class="filter-selection">
+          <p class="filter-status" aria-live="polite">
+            {#if selectedCount !== null}
+              {selectedCount} selected
+            {/if}
+          </p>
+          {#if selection.state.mode === 'ids' && total !== null && selectedCount !== null && selectedCount < total}
+            <button type="button" class="btn" onclick={() => selection.selectAll()}>
+              Select All {total} Matching
+            </button>
+          {/if}
+          <button
+            type="button"
+            class="btn btn-destructive"
+            disabled={deleting || selectedCount === null}
+            onclick={askDeleteCards}
+          >
+            Delete…
+          </button>
+        </div>
+      {:else}
+        <p class="filter-status" aria-live="polite">
+          {#if filtered && matching !== null}
+            {matching} matching
+          {/if}
+        </p>
+      {/if}
     </div>
-    <CardList {query} {refreshKey} />
+    <CardList {query} {selection} {refreshKey} ondelete={askDeleteCards} />
   </div>
+  <Alert
+    bind:open={deleteCardsOpen}
+    title={deleteCardsTitle}
+    message="This can’t be undone."
+    confirmLabel="Delete"
+    cancelLabel="Cancel"
+    destructive
+    onconfirm={deleteCards}
+  />
+  <Alert
+    bind:open={deleteDeckOpen}
+    title="Delete “{deck.name}”?"
+    message="Its {cardsLabel(deck.total, false)} will be deleted. This can’t be undone."
+    confirmLabel="Delete"
+    cancelLabel="Cancel"
+    destructive
+    onconfirm={deleteDeck}
+  />
 {:else}
   <Toolbar title="Leitner Box" />
   <div class="deck-body">
@@ -127,6 +254,8 @@
     {/if}
   </div>
 {/if}
+
+<Alert bind:open={failOpen} title="Delete Failed" message={failMessage} />
 
 <style>
   .deck-body {
@@ -146,6 +275,14 @@
     height: var(--filter-bar-height);
     padding: 0 var(--s4);
     border-bottom: var(--hairline) solid var(--separator);
+  }
+
+  .filter-selection {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    flex: 0 1 auto;
+    min-width: 0;
   }
 
   .filter-status {

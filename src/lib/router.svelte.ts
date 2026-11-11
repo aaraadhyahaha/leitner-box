@@ -1,11 +1,13 @@
 export type Route =
   | { name: 'home' }
+  | { name: 'imports' }
   | { name: 'deck'; deckId: number }
   | { name: 'study'; deckId: number };
 
 const ROUTE_RE = /^#\/(deck|study)\/(\d+)$/;
 
 export function parseHash(hash: string): Route {
+  if (hash === '#/imports') return { name: 'imports' };
   const m = ROUTE_RE.exec(hash);
   if (!m) return { name: 'home' };
   const deckId = Number(m[2]);
@@ -19,6 +21,8 @@ export function toHash(route: Route): string {
       return `#/deck/${route.deckId}`;
     case 'study':
       return `#/study/${route.deckId}`;
+    case 'imports':
+      return '#/imports';
     default:
       return '#/';
   }

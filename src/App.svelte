@@ -5,6 +5,7 @@
   import ExportButton from './components/ExportButton.svelte';
   import DeckView from './components/DeckView.svelte';
   import StudyView from './components/StudyView.svelte';
+  import ImportsView from './components/ImportsView.svelte';
   import { deckStore, refreshDecks } from './lib/decks.svelte';
   import { router } from './lib/router.svelte';
 
@@ -30,6 +31,8 @@
       {#key route.deckId}
         <DeckView deckId={route.deckId} />
       {/key}
+    {:else if route.name === 'imports'}
+      <ImportsView />
     {:else if route.name === 'study'}
       {#key route.deckId}
         <StudyView deckId={route.deckId} />

@@ -3,15 +3,20 @@
   import VirtualList from './VirtualList.svelte';
   import { call } from '../lib/db/client';
   import type { Card, CardQuery, DueCursor } from '../lib/db/types';
+  import type { Selection } from '../lib/selection.svelte';
 
   let {
     query,
+    selection,
     refreshKey = '',
     onopen,
+    ondelete,
   }: {
     query: CardQuery;
+    selection: Selection;
     refreshKey?: string | number;
     onopen?: (card: Card) => void;
+    ondelete?: () => void;
   } = $props();
 
   const PAGE = 200;
@@ -22,6 +27,13 @@
   let loaded = $state(false);
   let error: string | null = $state(null);
   let generation = 0;
+
+  const uid = `card-list-${Math.random().toString(36).slice(2, 8)}`;
+  let list: VirtualList<Card> | undefined = $state();
+
+  // Keyboard cursor row index; -1 when there is none.
+  let cursor = $state(-1);
+  const activeIndex = $derived(cursor >= 0 && cursor < cards.length ? cursor : -1);
 
   const filtered = $derived(query.search.trim() !== '' || query.box !== null);
 
@@ -62,6 +74,17 @@
     });
   });
 
+  // A new query clears the selection and the cursor.
+  $effect(() => {
+    void query.deckId;
+    void query.search;
+    void query.box;
+    untrack(() => {
+      selection.clear();
+      cursor = -1;
+    });
+  });
+
   function loadMore() {
     if (loading || error || next === null) return;
     load(false);
@@ -80,6 +103,73 @@
     if (!el) return;
     const card = cards[Number(el.dataset.index)];
     if (card) onopen?.(card);
+  }
+
+  function rowId(id: number): string {
+    return `${uid}-${id}`;
+  }
+
+  function idAt(i: number): number {
+    return cards[i].id;
+  }
+
+  function onclick(e: MouseEvent) {
+    const el = e.target instanceof Element ? e.target.closest<HTMLElement>('[data-index]') : null;
+    if (!el) return;
+    const index = Number(el.dataset.index);
+    if (!cards[index]) return;
+    selection.click(index, idAt, { toggle: e.ctrlKey || e.metaKey, range: e.shiftKey });
+    cursor = index;
+  }
+
+  function moveTo(index: number, extend: boolean) {
+    if (cards.length === 0) return;
+    const i = Math.max(0, Math.min(index, cards.length - 1));
+    selection.click(i, idAt, { toggle: false, range: extend });
+    cursor = i;
+    list?.scrollToIndex(i);
+  }
+
+  function onkeydown(e: KeyboardEvent) {
+    if (e.altKey) return;
+    const mod = e.ctrlKey || e.metaKey;
+    if (mod) {
+      if (!e.shiftKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        selection.selectAll();
+      }
+      return;
+    }
+    const current = activeIndex;
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        moveTo(current < 0 ? 0 : current + 1, e.shiftKey);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        moveTo(current < 0 ? 0 : current - 1, e.shiftKey);
+        break;
+      case 'Home':
+        e.preventDefault();
+        moveTo(0, e.shiftKey);
+        break;
+      case 'End':
+        e.preventDefault();
+        moveTo(cards.length - 1, e.shiftKey);
+        break;
+      case 'Delete':
+      case 'Backspace':
+        if (selection.toRequest(query) === null) return;
+        e.preventDefault();
+        ondelete?.();
+        break;
+      case 'Escape':
+        if (selection.toRequest(query) === null) return;
+        e.preventDefault();
+        selection.clear();
+        break;
+    }
   }
 </script>
 
@@ -101,6 +191,7 @@
     </div>
   {:else}
     <VirtualList
+      bind:this={list}
       items={cards}
       rowHeight={28}
       onnearend={loadMore}
@@ -108,12 +199,25 @@
       role="listbox"
       tabindex={0}
       aria-label="Cards"
+      aria-multiselectable="true"
+      aria-activedescendant={activeIndex >= 0 ? rowId(cards[activeIndex].id) : undefined}
+      {onclick}
       {ondblclick}
+      {onkeydown}
     >
       {#snippet row(card: Card, i: number)}
         {@const front = plain(card.front)}
         {@const back = plain(card.back)}
-        <div class="list-row card-row" role="option" aria-selected="false" data-index={i}>
+        {@const selected = selection.has(card.id)}
+        <div
+          id={rowId(card.id)}
+          class="list-row card-row"
+          class:selected
+          class:cursor={i === activeIndex}
+          role="option"
+          aria-selected={selected}
+          data-index={i}
+        >
           <span class="card-front" title={front}>{front}</span>
           <span class="card-back" title={back}>{back}</span>
           <span class="card-box">Box {card.box}</span>
@@ -150,6 +254,15 @@
 
   .card-row {
     font: var(--text-body) var(--font-system);
+    cursor: default;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Keyboard cursor on a row that is not selected. */
+  :global(.card-list-scroller:focus) .card-row.cursor:not(.selected) {
+    outline: 1px solid var(--focus-ring);
+    outline-offset: -1px;
   }
 
   .card-front,
