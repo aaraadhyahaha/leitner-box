@@ -30,9 +30,9 @@ Waves: D = T2.B, T2.C in parallel. E = T2.1, T2.3, T2.5, T2.6, T2.7 in parallel.
 ## Tier 3 (daily reminders and habit)
 Waves: H = T3.1, T3.2, T3.3 in parallel. I = T3.4. J = T3.5. Then T3.6.
 - [x] T3.A Spec: UI.md §7.13, PLAN §4
-- [ ] T3.1 DB: schema v2, remind flag, days, habit summary (wave H)
-- [ ] T3.2 Habit logic: streak, rhythm, estimate (wave H)
-- [ ] T3.3 Reminders core, store, ICS, service worker (wave H)
+- [x] T3.1 DB: schema v2, remind flag, days, habit summary (wave H)
+- [x] T3.2 Habit logic: streak, rhythm, estimate (wave H)
+- [x] T3.3 Reminders core, store, ICS, service worker (wave H)
 - [ ] T3.4 Today view, sidebar, reminders sheet, runtime (wave I)
 - [ ] T3.5 Study and deck hooks (wave J)
 - [ ] T3.6 Verify and audit
@@ -136,3 +136,8 @@ Headless Chrome 157, production build, fresh profile, 100k cards in 10 decks (la
 - 2026-11-16 A run never starts or ends on a forgiven or rest day; a missing `days` row counts as missed.
 - 2026-11-16 The in-app timer only fires when the reminder time is still ahead; opening the app after it never back-fills a notification.
 - 2026-11-16 `buildIcs` takes `now` (testable); description and URL point at `#/today`.
+- 2026-11-16 Wave H ran in the main session (user request), not via Opus executors.
+- 2026-11-16 Streak trims rest and forgiven days from both ends (newest too), so a forgiven or rest yesterday doesn't show in the count until a later day is kept.
+- 2026-11-16 `ops.test.ts` migrate test now expects `user_version` 2.
+- 2026-11-16 `habit.ts` also exports `weekday(day)` (Monday 0); `core.ts` also exports `localMinute`; `ics.ts` exports `foldLine`.
+- 2026-11-16 SW `notificationclick` uses the first window client; `navigate` failing (uncontrolled client) falls back to the `route` message. After notifying, the SW re-reads the snapshot before setting `notifiedDay`.
