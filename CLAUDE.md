@@ -32,7 +32,7 @@ Local-first web app (runs in the browser, works offline) for Leitner-box flashca
    - A render error is a warning, not a crash.
 9. **AI card generation**: write `docs/IMPORT_FORMAT.md` with the format and a copy-paste prompt for an AI agent to generate cards for a named deck. Stress that backslashes must be doubled in JSON (`\\frac`).
 
-Out of scope: sync, accounts, images, audio, stats dashboards, nested decks.
+Out of scope: sync, accounts, images, audio, nested decks.
 
 ## File map
 - Root: `index.html`, `.github/workflows/deploy.yml` (GitHub Pages: check, test, build, deploy on push to main; base `/leitner-box/`), `public/` (`manifest.webmanifest`, `icon.svg`, `sw-template.js`, `.nojekyll`), `scripts/sw-manifest.mjs` (Vite plugin writing `dist/sw.js`), `scripts/gen-cards.mjs` (bench JSONL), `package.json`, `vite.config.ts`, `svelte.config.js`, `tsconfig.json`, `.gitignore`
