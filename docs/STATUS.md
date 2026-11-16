@@ -27,6 +27,16 @@ Waves: D = T2.B, T2.C in parallel. E = T2.1, T2.3, T2.5, T2.6, T2.7 in parallel.
 - [x] T2.8 100k performance check (numbers below)
 - [x] T2.9 HIG audit: headless Chrome 157, light/dark, increased contrast, reduced motion, keyboard only (fixes below; Firefox not re-run)
 
+## Tier 3 (daily reminders and habit)
+Waves: H = T3.1, T3.2, T3.3 in parallel. I = T3.4. J = T3.5. Then T3.6.
+- [x] T3.A Spec: UI.md §7.13, PLAN §4
+- [ ] T3.1 DB: schema v2, remind flag, days, habit summary (wave H)
+- [ ] T3.2 Habit logic: streak, rhythm, estimate (wave H)
+- [ ] T3.3 Reminders core, store, ICS, service worker (wave H)
+- [ ] T3.4 Today view, sidebar, reminders sheet, runtime (wave I)
+- [ ] T3.5 Study and deck hooks (wave J)
+- [ ] T3.6 Verify and audit
+
 ## Performance (T2.8)
 Headless Chrome 157, production build, fresh profile, 100k cards in 10 decks (largest 39,709). Medians of 20 runs, measured on the main thread around `call()` (includes the worker round trip). Rerun: `npm run build`, `npm run preview`, open `/?perf`, then `__perf.importFile(file)`, `__perf.queries()`, `__perf.scroll()` (see `src/lib/perf.ts`).
 
@@ -120,3 +130,9 @@ Headless Chrome 157, production build, fresh profile, 100k cards in 10 decks (la
 - 2026-11-11 The "N matching" count starts one task after the list's page request; a common-term count (~28 ms) is accepted since it never delays results.
 - 2026-11-11 The service worker ignores `.jsonl`; headless Chrome fails `fetch()` of an 18 MB file, so the harness imports via a file input.
 - 2026-11-11 UI.md §7.11 (notices) and §7.12 (text rules: title/sentence case, ellipsis, typographic quotes, `fmt()` for counts) added in T2.9.
+- 2026-11-16 Tier 3: `days.cleared` is sticky within a day; only undo can un-clear today.
+- 2026-11-16 New params have defaults (`migrate(db, tz)`, `undoReview(db, id, tz)`) so Tier 1/2 tests are unchanged; `habit-ops.ts` never imports `ops.ts`/`card-ops.ts` (no cycle).
+- 2026-11-16 `habit.summary` returns a year of `days` so streaks aren't capped at the 12-week grid; the forecast covers every reminded deck, with `byDay[0]` including overdue.
+- 2026-11-16 A run never starts or ends on a forgiven or rest day; a missing `days` row counts as missed.
+- 2026-11-16 The in-app timer only fires when the reminder time is still ahead; opening the app after it never back-fills a notification.
+- 2026-11-16 `buildIcs` takes `now` (testable); description and URL point at `#/today`.

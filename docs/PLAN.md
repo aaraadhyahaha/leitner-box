@@ -553,3 +553,159 @@ Files: new `scripts/gen-cards.mjs`, `src/lib/bench.ts`; edit `src/main.ts`, `.gi
 
 ### T2.9 HIG audit · orchestrator, last
 Walk every screen in UI.md §6 and §7 against the §8 checklist in light and dark, with increased contrast, with reduced motion, and keyboard-only, in Chromium and Firefox. Correct UI.md where the built app is right and the spec is stale. List each finding as one line in STATUS.md and issue one fix card per screen. Finish with `npm run test && npm run check && npm run build`.
+
+## 4. Tier 3 cards: daily reminders and habit
+
+Source: `docs/PLAN-T3-REMINDERS.md` (context and contracts); UI spec in `docs/UI.md` §7.13. No new dependencies.
+
+### Order and parallelism
+```
+T3.A (done, orchestrator)
+wave H  parallel:  T3.1  T3.2  T3.3
+wave I  alone:     T3.4            (after wave H)
+wave J  alone:     T3.5            (after T3.4)
+then    T3.6 (orchestrator)
+```
+T3.2 type-imports `DayRecord` from `types.ts`, which T3.1 adds in the same wave; vitest strips type imports, and `npm run check` runs after the wave.
+
+### 4.1 Contracts (fixed)
+
+**`types.ts` additions (verbatim).**
+```ts
+// DeckSummary gains:  remind: boolean;
+export interface DayRecord { day: number; reviewed: number; cleared: boolean; planned: number | null }
+export interface DeckForecast { deckId: number; name: string; byDay: number[] } // length 31; [0] = due today incl. overdue, [i] = due_day == today+i
+export interface HabitSummary {
+  today: number;
+  days: DayRecord[];        // rows with today-365 <= day <= today, ascending
+  secondsPerCard: number;
+  forecast: DeckForecast[]; // every reminded deck (also those with nothing due), by name NOCASE
+}
+// Api gains:
+'deck.setRemind': { req: { id: number; remind: boolean }; res: null };
+'habit.summary':  { req: null; res: HabitSummary };
+```
+
+**Schema v2** (`schema.ts` exports `SCHEMA_V2`, verbatim; the backfill is separate because it binds the time zone):
+```sql
+ALTER TABLE decks ADD COLUMN remind INTEGER NOT NULL DEFAULT 1;
+CREATE TABLE days(
+  day INTEGER PRIMARY KEY,
+  reviewed INTEGER NOT NULL DEFAULT 0,
+  cleared INTEGER NOT NULL DEFAULT 0,
+  planned INTEGER);
+CREATE INDEX reviews_time ON reviews(reviewed_at);
+PRAGMA user_version = 2;
+```
+Backfill (also exported, as `BACKFILL_DAYS`): `INSERT INTO days(day, reviewed, cleared) SELECT (reviewed_at - ? * 60000) / 86400000, COUNT(*), 1 FROM reviews GROUP BY 1` bound to `[tzOffsetMin]`.
+
+**Habit semantics.**
+- *Reminded due* (today): `SELECT EXISTS(SELECT 1 FROM cards c JOIN decks d ON d.id = c.deck_id WHERE d.remind = 1 AND c.due_day <= ?)`.
+- *Answer*: `INSERT INTO days(day, reviewed, cleared) VALUES (?, 1, ?) ON CONFLICT(day) DO UPDATE SET reviewed = reviewed + 1, cleared = MAX(cleared, excluded.cleared)` with `cleared = remindedDue ? 0 : 1`. `cleared` is sticky within a day except through undo.
+- *Undo*: the review's day is `dayNumber(reviewed_at, tzOffsetMin)`. `UPDATE days SET reviewed = MAX(reviewed - 1, 0) WHERE day = ?`; if that day is today, also set `cleared = remindedDue ? 0 : 1` (not sticky).
+- *Summary*: forecast from `SELECT c.deck_id, MAX(c.due_day - ?today, 0), COUNT(*) FROM cards c JOIN decks d ON d.id = c.deck_id WHERE d.remind = 1 AND c.due_day <= ?today + 30 GROUP BY 1, 2`, merged into every reminded deck (`SELECT id, name FROM decks WHERE remind = 1 ORDER BY name COLLATE NOCASE, id`). In one transaction: if the total of `byDay[0]` is 0, upsert today with `cleared = 1`; upsert `planned` for today+1 … today+30 with the per-day total over reminded decks (`INSERT INTO days(day, planned) VALUES (?, ?) ON CONFLICT(day) DO UPDATE SET planned = excluded.planned`); insert today with `planned = byDay[0] total` only if its `planned` is NULL. Then read `days` for `today-365 … today`.
+- *secondsPerCard*: the last 300 `reviewed_at` values (`ORDER BY reviewed_at DESC`, uses `reviews_time`); gaps between neighbours that are `> 0` and `< 120000` ms; fewer than 5 gaps gives `8`; else the median gap in seconds, clamped to `3..60`, rounded to 0.1.
+- *Streak* (`computeStreak(days, today)`): `kept(d)` = row cleared; `rest(d)` = row exists, `planned === 0`, not cleared; else missed (including no row). Start at `today` if kept, else `today - 1`. Walk back while `d >= firstRowDay`: kept or rest continues; missed is forgiven if no forgiven day lies in `d+1 … d+6`, else stop. Then trim from the oldest end every day that is not kept (rest or forgiven), so the run ends on a kept day. `length` = days in the run (0 if none kept); `forgiven` = forgiven days inside it, descending.
+- *Rhythm* (`rhythmCells(days, today)`): 84 cells from the Monday 11 weeks before today's week (`weekday(d) = (d + 3) % 7`, 0 = Monday) through that week's Sunday, ascending. Status: `d > today` future; kept → kept; `d === today` → none; rest → rest; in `computeStreak(...).forgiven` → forgiven; else missed. Level: kept only, from `reviewed`: 0 → 1, ≤ 10 → 1, ≤ 30 → 2, ≤ 60 → 3, else 4; every other status 0.
+- `estimateMinutes(due, spc) = Math.max(1, Math.ceil(due * spc / 60))`; 0 due gives 0.
+
+**Reminders core** (`src/lib/reminders/core.ts`, ported by hand into the SW):
+```ts
+export interface ReminderPrefs { time: string; notify: boolean }     // "HH:MM"
+export const DEFAULT_PREFS: ReminderPrefs = { time: '19:00', notify: false };
+export interface SnapshotDeck { id: number; name: string; byDay: number[] }
+export interface Snapshot {
+  day: number; time: string; notify: boolean; streak: number; secondsPerCard: number;
+  decks: SnapshotDeck[]; notifiedDay: number | null;
+}
+export function dueOn(s: Snapshot, today: number): { id: number; name: string; due: number }[];
+//   k = clamp(today - s.day, 0, 30); due = sum(byDay[0..k]); only due > 0; due desc, then name
+export function minutesOfDay(time: string): number;                  // "19:05" -> 1145; invalid -> 1140
+export function shouldNotify(s: Snapshot, nowMs: number, tzOffsetMin: number): boolean;
+//   today = dayNumber(nowMs, tz); local minute = floor(((nowMs - tz*60000) mod 86400000) / 60000) (positive mod)
+//   s.notify && dueOn(s, today) non-empty && minute >= minutesOfDay(s.time) && s.notifiedDay !== today
+export function notificationText(s: Snapshot, today: number): { title: string; body: string };
+//   title 'Leitner'; parts = first 3 decks as `${name} ${due.toLocaleString()}`, plus `${k} more` if more;
+//   body = `${parts.join(' · ')} · about ${max(1, ceil(total*spc/60))} min.` + (streak >= 2 ? ` Keep your ${streak}-day streak going.` : '')
+```
+
+### T3.1 DB: schema v2, remind flag, days, habit summary · wave H · needs §0, §4.1 (types, schema, habit semantics), §1.5
+Files: `src/lib/db/types.ts`, `schema.ts`, `ops.ts`, `card-ops.ts`, `worker.ts`, new `src/lib/db/habit-ops.ts`, `habit-ops.test.ts`.
+- `types.ts`: the §4.1 additions verbatim.
+- `schema.ts`: export `SCHEMA_V2` and `BACKFILL_DAYS` verbatim.
+- `ops.ts`: `migrate(db, tzOffsetMin = new Date().getTimezoneOffset())`: version 0 runs V1 then V2 + backfill in one transaction; version 1 runs V2 + backfill in a transaction. `listDecks` selects `d.remind` and sets `remind: num(remind) === 1`. `answerCard` calls `recordAnswer(db, today)` inside its transaction, after the review insert.
+- `habit-ops.ts` (must not import from `ops.ts` or `card-ops.ts`; use `Number()`; `dayNumber` from `../leitner`):
+  ```ts
+  export function remindedDue(db: Database, today: number): boolean;
+  export function recordAnswer(db: Database, today: number): void;
+  export function recordUndo(db: Database, reviewedAt: number, today: number, tzOffsetMin: number): void;
+  export function setRemind(db: Database, id: number, remind: boolean): void;   // unknown id throws 'Deck not found'
+  export function habitSummary(db: Database, today: number): HabitSummary;
+  ```
+- `card-ops.ts`: `undoReview(db, reviewId, tzOffsetMin = new Date().getTimezoneOffset())`; inside its transaction, after restoring the card, read `reviewed_at` (already selected or select it) and call `recordUndo(db, reviewedAt, dayNumber(Date.now(), tzOffsetMin), tzOffsetMin)`.
+- `worker.ts`: `'deck.setRemind': (db, args) => { setRemind(db, args.id, args.remind); return null; }`, `'habit.summary': (db) => habitSummary(db, today())`.
+- `habit-ops.test.ts` (same in-memory setup as `ops.test.ts`): fresh DB has `user_version` 2 and decks default `remind` true; a v1 DB (run `SCHEMA_V1` by hand, insert reviews on two days at tz 0, then `migrate(db, 0)`) gains `days` rows with the right counts and `cleared = 1`; answering every due card sets today's `cleared`, answering one of two leaves it 0; undo of the last answer decrements `reviewed` and un-clears; a deck with `remind` off doesn't block `cleared`; `setRemind` unknown id throws; `habitSummary` forecast equals a brute-force count per deck and day over 300 random cards, writes `planned` for the next 30 days, and `secondsPerCard` is 8 with few reviews and the median otherwise.
+- Check: `npx vitest run src/lib/db && npm run check`
+
+### T3.2 Habit logic · wave H · needs §0, §4.1 (`DayRecord`, streak, rhythm, estimate)
+Files: new `src/lib/habit.ts`, `src/lib/habit.test.ts`.
+```ts
+import type { DayRecord } from './db/types';
+export type CellStatus = 'kept' | 'rest' | 'forgiven' | 'missed' | 'future' | 'none';
+export interface RhythmCell { day: number; status: CellStatus; level: 0 | 1 | 2 | 3 | 4 }
+export function computeStreak(days: DayRecord[], today: number): { length: number; forgiven: number[] };
+export function rhythmCells(days: DayRecord[], today: number): RhythmCell[];
+export function estimateMinutes(due: number, secondsPerCard: number): number;
+```
+- Tests: empty history gives 0; today kept vs not yet kept (start yesterday); rest days count and don't break; one missed day forgiven, a second within 6 days stops, a second 7+ days later is forgiven too; a run that would start with a forgiven or rest day is trimmed; a missing row counts as missed; 84 cells, first is a Monday, last is a Sunday, today's status is `none` until kept, future cells after today; levels at 0, 10, 11, 61 reviewed; `estimateMinutes(0, 8) === 0`, `(1, 8) === 1`, `(42, 8) === 6`.
+- Check: `npx vitest run src/lib/habit.test.ts`
+
+### T3.3 Reminders core, store, ICS, service worker · wave H · needs §0, §4.1 (reminders core), PLAN-T3 "Service worker"
+Files: new `src/lib/reminders/core.ts`, `core.test.ts`, `store.ts`, `ics.ts`, `ics.test.ts`; edit `public/sw-template.js`.
+- `core.ts`: §4.1 verbatim; imports only `dayNumber` from `../leitner`.
+- `store.ts`: IndexedDB `leitner-reminders` version 1, object store `kv` (out-of-line keys), keys `prefs` and `snapshot`. Every function catches all errors (also missing `indexedDB`) and resolves:
+  ```ts
+  export function getPrefs(): Promise<ReminderPrefs>;              // DEFAULT_PREFS on miss or error
+  export function setPrefs(p: ReminderPrefs): Promise<void>;
+  export function getSnapshot(): Promise<Snapshot | null>;
+  export function writeSnapshot(s: Omit<Snapshot, 'notifiedDay'>): Promise<void>; // one readwrite tx; keeps the stored notifiedDay (null if none)
+  export function markNotified(day: number): Promise<void>;        // sets snapshot.notifiedDay if a snapshot exists
+  ```
+- `ics.ts`: `export function buildIcs(o: { time: string; url: string; deckNames: string[]; now: Date }): string`. Lines: `BEGIN:VCALENDAR`, `VERSION:2.0`, `PRODID:-//Leitner//Reminders//EN`, `CALSCALE:GREGORIAN`, `BEGIN:VEVENT`, `UID:leitner-daily@leitner`, `DTSTAMP:` (UTC `YYYYMMDDTHHMMSSZ` of `now`), `DTSTART:` (floating local, the day after `now` at `time`, `YYYYMMDDTHHMM00`), `DURATION:PT15M`, `RRULE:FREQ=DAILY`, `SUMMARY:Leitner review`, `DESCRIPTION:` (`Review your due cards` + (names ? `: ${names.join(', ')}` : '') + `.\n${url}`), `URL:${url}`, `BEGIN:VALARM`, `ACTION:DISPLAY`, `DESCRIPTION:Leitner review`, `TRIGGER:PT0M`, `END:VALARM`, `END:VEVENT`, `END:VCALENDAR`. TEXT values escape `\` `;` `,` and newline (`\n`). Join with CRLF, end with CRLF. Fold any line over 75 UTF-8 octets: CRLF + one space, never splitting a code point.
+- `sw-template.js`: append a block headed `// Reminders: keep in sync with src/lib/reminders/core.ts` with plain-JS ports of `dayNumber`, `minutesOfDay`, `dueOn`, `shouldNotify`, `notificationText`, and a tiny IndexedDB helper (`idbGet(key)`, `idbPut(key, value)` on `leitner-reminders`/`kv`, creating the store in `onupgradeneeded`). Handlers:
+  - `periodicsync`, `event.tag === 'leitner-daily'`: `event.waitUntil` reading the snapshot; if `shouldNotify(s, Date.now(), new Date().getTimezoneOffset())`, `self.registration.showNotification(title, { body, tag: 'leitner-daily', icon: 'icon.svg', actions: [{ action: 'start', title: 'Start Review' }] })`, then set `notifiedDay = today` and put it back.
+  - `notificationclick`: close it; `url = self.registration.scope + '#/today'`; `clients.matchAll({ type: 'window', includeUncontrolled: true })`; with a client, `focus()` then `navigate(url)` (if `navigate` rejects, `postMessage({ type: 'route', hash: '#/today' })`); else `clients.openWindow(url)`.
+- `core.test.ts`: `dueOn` accumulates over skipped days and clamps at 30; `shouldNotify` false before the time, true at it, false once notified today, false with notify off or nothing due, correct across tz offsets −330 and +300 and near midnight; `notificationText` with 1 and 5 decks and streak 1 vs 12. `ics.test.ts`: every line ends in CRLF, no line over 75 octets, a long non-ASCII description unfolds back to the original, DTSTART is tomorrow, `RRULE:FREQ=DAILY` and the UID are present, commas and semicolons are escaped.
+- Check: `npx vitest run src/lib/reminders && node --check public/sw-template.js`
+
+### T3.4 Today view, sidebar, reminders sheet, runtime · wave I · needs §0, §4.1, UI.md §7.13, `Sheet` props (`open` bindable, `title`, `onclose`, `wide`), §7.12
+Files: `src/lib/router.svelte.ts`, `router.test.ts`, `src/App.svelte`, `src/components/Sidebar.svelte`, `src/lib/decks.svelte.ts`, `src/styles/tokens.css`, `src/styles/base.css`; new `src/components/TodayView.svelte`, `RemindersSheet.svelte`, `RhythmGrid.svelte`, `src/lib/habit.svelte.ts`, `src/lib/reminders/reminders.svelte.ts`.
+- Router: `Route` gains `{ name: 'today' }` (`#/today`) and `study` becomes `{ name: 'study'; deckId: number; limit?: number }` ↔ `#/study/3?n=10` (`n` is an integer 1…1000, else dropped). Tests: round-trip both, bad `n` dropped.
+- `habit.svelte.ts`: `export const habitStore: { summary: HabitSummary | null; error: string | null } = $state(...)`; `export async function refreshHabit(): Promise<void>` calls `habit.summary`, stores it, then `syncReminders(summary)`; `export function startHabit(): void` (call once from `App.svelte` mount) runs `refreshHabit`, re-runs `refreshDecks` on `visibilitychange` to visible and at the next local midnight + 1 s (re-armed each time).
+- `decks.svelte.ts`: `refreshDecks` calls `void refreshHabit()` after a successful load.
+- `reminders.svelte.ts`:
+  ```ts
+  export const reminders: { prefs: ReminderPrefs; permission: NotificationPermission | 'unsupported';
+    support: { notify: boolean; periodic: boolean; badge: boolean } } = $state(...);
+  export async function loadReminders(): Promise<void>;           // getPrefs + detect support/permission
+  export async function savePrefs(p: ReminderPrefs): Promise<void>;// setPrefs, then syncReminders(last summary)
+  export async function syncReminders(s: HabitSummary): Promise<void>;
+  export async function enableNotifications(): Promise<boolean>;   // must run in the click handler
+  export function downloadIcs(deckNames: string[]): void;
+  ```
+  Support: `notify = 'Notification' in window && 'serviceWorker' in navigator`; `periodic = 'serviceWorker' in navigator && 'periodicSync' in ServiceWorkerRegistration.prototype`; `badge = 'setAppBadge' in navigator`. `syncReminders`: `writeSnapshot({ day: s.today, time, notify, streak: computeStreak(s.days, s.today).length, secondsPerCard, decks: forecast mapped to { id: deckId, name, byDay } })`; badge = sum of `byDay[0]` (`setAppBadge(n)` or `clearAppBadge()`, errors ignored); clear the old timer and, if notify and the reminder time today is still ahead, `setTimeout` to it, which reads `getSnapshot()` and, when `shouldNotify`, shows the notification through `(await navigator.serviceWorker.ready).showNotification` (same options as the SW) and `markNotified(today)`. `enableNotifications`: `Notification.requestPermission()`; if granted and `periodic`, `reg.periodicSync.register('leitner-daily', { minInterval: 12 * 3600 * 1000 })` in a try/catch; returns whether granted. `downloadIcs`: `buildIcs({ time, url: location.origin + location.pathname + '#/today', deckNames, now: new Date() })` as `text/calendar`, file `leitner-reminder.ics`, URL revoked after 1 s. Also listen for SW `message` `{ type: 'route', hash }` and set `location.hash`.
+- `App.svelte`: call `startHabit()` and `loadReminders()` on mount; render `TodayView` for `today`; when the route is `home`, decks are loaded and non-empty, `go({ name: 'today' })`.
+- `Sidebar.svelte`: the Today row first in the listbox, per UI §7.13.
+- `TodayView.svelte`, `RhythmGrid.svelte` (props `{ days: DayRecord[]; today: number }`), `RemindersSheet.svelte` (props `{ open: boolean (bindable) }`): per UI §7.13. Due counts come from `deckStore` (`remind && due > 0`, due desc); minutes from `estimateMinutes(total, summary.secondsPerCard ?? 8)`; tomorrow from the sum of `forecast[].byDay[1]`. Start Review goes to the first listed deck; Just 10 adds `limit: 10`. The sheet's deck checkboxes call `deck.setRemind` then `refreshDecks()`; the notify checkbox calls `enableNotifications()` when turned on and stays off if not granted; time changes call `savePrefs` on `change`.
+- `tokens.css` / `base.css`: the UI §7.13 tokens and classes.
+- Check: `npm run check && npx vitest run src/lib/router.test.ts`
+
+### T3.5 Study and deck hooks · wave J · needs §0, UI.md §7.13 (Deck view, Study end), `refreshHabit`/`habitStore` from T3.4, `deckStore`/`refreshDecks`
+Files: `src/components/StudyView.svelte`, `src/components/DeckView.svelte`, `src/App.svelte`.
+- `StudyView`: new prop `limit?: number`. With a limit, the session deals at most `limit` distinct cards (each `study.due` asks for `min(PAGE, limit - fetched)` and stops at the limit); "of M" uses `min(due, limit)`. On reaching the end screen, `await refreshDecks()` (which refreshes habit), then show the next-deck button or the done line per UI §7.13. The next candidate is the reminded deck with the most due (the current deck counts); clicking goes to `{ name: 'study', deckId }`.
+- `DeckView`: the Remind Me Daily button per UI §7.13; click calls `deck.setRemind` with the toggled value, then `refreshDecks()`.
+- `App.svelte`: pass `limit={route.limit}` to `StudyView`; key on `route.deckId` and `route.limit`.
+- Check: `npm run check`
+
+### T3.6 Verify and audit · orchestrator
+As in `docs/PLAN-T3-REMINDERS.md`: `npm run test && npm run check && npm run build`; Chrome notification and `notificationclick` check with throwaway playwright-core; Firefox calendar and in-app paths; `habit.summary` < 20 ms and `study.answer` at 100k; §8 audit on Today, Reminders sheet and study end; decisions in STATUS.
