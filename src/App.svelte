@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import Sidebar from './components/Sidebar.svelte';
   import Toolbar from './components/Toolbar.svelte';
   import ImportButton from './components/ImportButton.svelte';
@@ -13,7 +14,8 @@
   import { loadReminders } from './lib/reminders/reminders.svelte';
   import { router, go } from './lib/router.svelte';
 
-  $effect(() => {
+  // onMount, not $effect: these read and write state, which an effect would track.
+  onMount(() => {
     startHabit();
     void loadReminders();
     void refreshDecks();

@@ -177,7 +177,11 @@ self.addEventListener('notificationclick', (event) => {
         await self.clients.openWindow(url);
         return;
       }
-      await client.focus();
+      try {
+        await client.focus();
+      } catch {
+        /* focus needs the click's activation; route anyway */
+      }
       try {
         await client.navigate(url);
       } catch {

@@ -190,10 +190,30 @@ describe('habitSummary', () => {
     expect(sum.days.at(-1)).toEqual({ day: T, reviewed: 1, cleared: true, planned: 1 });
   });
 
-  it('empty DB clears today and lists no decks', () => {
+  it('empty DB makes today a rest day, not cleared, and lists no decks', () => {
     const sum = habitSummary(db, T);
     expect(sum.forecast).toEqual([]);
-    expect(sum.days).toEqual([{ day: T, reviewed: 0, cleared: true, planned: 0 }]);
+    expect(sum.days).toEqual([{ day: T, reviewed: 0, cleared: false, planned: 0 }]);
+  });
+
+  it('cards imported after an empty summary raise today planned and stay uncleared', () => {
+    habitSummary(db, T);
+    const d = deck('A');
+    card(d, T);
+    card(d, T);
+    habitSummary(db, T);
+    expect(dayRow(T)).toMatchObject({ planned: 2, cleared: 0 });
+  });
+
+  it('marks today cleared when nothing is due after reviews (deck turned off)', () => {
+    const a = deck('A');
+    const c1 = card(a, T);
+    card(a, T);
+    answerCard(db, c1, true, T * DAY_MS, T);
+    expect(dayRow(T)).toMatchObject({ reviewed: 1, cleared: 0 });
+    setRemind(db, a, false);
+    habitSummary(db, T);
+    expect(dayRow(T)).toMatchObject({ cleared: 1 });
   });
 
   it('secondsPerCard defaults to 8 with few reviews and uses the median otherwise', () => {

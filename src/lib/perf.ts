@@ -69,6 +69,7 @@ async function queries(): Promise<Row> {
     out[`count ${label}`] = await med(() => call('card.count', q(s)));
   }
   out['count all'] = await med(() => call('card.count', q('')));
+  out['habit.summary'] = await med(() => call('habit.summary', null));
   out['study.due 20'] = await med(() => call('study.due', { deckId: big.id, after: null, limit: 20 }));
 
   // Render 20 uncached cards (front + back), as the study view pre-renders them.

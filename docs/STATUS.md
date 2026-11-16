@@ -33,9 +33,19 @@ Waves: H = T3.1, T3.2, T3.3 in parallel. I = T3.4. J = T3.5. Then T3.6.
 - [x] T3.1 DB: schema v2, remind flag, days, habit summary (wave H)
 - [x] T3.2 Habit logic: streak, rhythm, estimate (wave H)
 - [x] T3.3 Reminders core, store, ICS, service worker (wave H)
-- [ ] T3.4 Today view, sidebar, reminders sheet, runtime (wave I)
-- [ ] T3.5 Study and deck hooks (wave J)
-- [ ] T3.6 Verify and audit
+- [x] T3.4 Today view, sidebar, reminders sheet, runtime (wave I)
+- [x] T3.5 Study and deck hooks (wave J)
+- [x] T3.6 Verify and audit: `npm run test` (16 files, 182 tests), check and build pass. Chrome 157 headless: notification fired at the set minute ("Sample 10 · about 2 min.", action Start Review, `notifiedDay` set); a dispatched `notificationclick` routed to `#/today`; `.ics` correct (folded, RRULE, VALARM); Return/Space/Right study to zero gives "That’s today done.", All Caught Up and a 1-day streak; "Just 10" (T) deals 10 via `?n=10`, end shows "Keep Going · 1,499 due"; Remind toggle empties Today. Firefox 160 (puppeteer-core over BiDi): same Today, study and calendar paths; support line reads "Shown only while Leitner is open in a tab…". Light, dark and increased contrast checked on Today, Reminders sheet and study end.
+
+## Performance (T3.6)
+Headless Chrome 157, same harness as T2.8 (100k cards, medians of 20). This machine/profile is slower than the T2.8 run: the pre-Tier-3 build (03c8371) measured the same way gives `study.answer` 9.2 ms and "count common" 278 ms, so those aren't Tier 3 regressions.
+
+| Metric | Target | Pre-Tier-3 build | Tier 3 |
+|---|---|---|---|
+| `habit.summary` | < 20 ms | (none) | 35.8 ms first cut → 5.8 ms |
+| `study.answer` (now also upserts `days`) | < 16 ms | 9.2 ms | 11.2 ms |
+| Deck list | < 20 ms | 15.4 ms | 14.8 ms |
+| Search common / two-term | < 15 ms | 6.9 / 7.6 ms | 6.0 / 7.6 ms |
 
 ## Performance (T2.8)
 Headless Chrome 157, production build, fresh profile, 100k cards in 10 decks (largest 39,709). Medians of 20 runs, measured on the main thread around `call()` (includes the worker round trip). Rerun: `npm run build`, `npm run preview`, open `/?perf`, then `__perf.importFile(file)`, `__perf.queries()`, `__perf.scroll()` (see `src/lib/perf.ts`).
@@ -141,3 +151,14 @@ Headless Chrome 157, production build, fresh profile, 100k cards in 10 decks (la
 - 2026-11-16 `ops.test.ts` migrate test now expects `user_version` 2.
 - 2026-11-16 `habit.ts` also exports `weekday(day)` (Monday 0); `core.ts` also exports `localMinute`; `ics.ts` exports `foldLine`.
 - 2026-11-16 SW `notificationclick` uses the first window client; `navigate` failing (uncontrolled client) falls back to the `route` message. After notifying, the SW re-reads the snapshot before setting `notifiedDay`.
+- 2026-11-16 Waves I and J and T3.6 ran in the main session (user request), not via Opus executors.
+- 2026-11-16 The sidebar Today row is a button above the "Decks" header (like Imports), not an option in the decks listbox.
+- 2026-11-16 Home redirects to Today with `go(route, { replace: true })` (history.replaceState), so Back doesn't loop.
+- 2026-11-16 `startHabit()` only sets up the visibility and midnight listeners; the first `habit.summary` comes from App's `refreshDecks()`. Startup runs in `onMount` (an `$effect` that writes `reminders` state looped).
+- 2026-11-16 Notifications count as on only with `prefs.notify` and permission `granted`; the snapshot's `notify` uses that.
+- 2026-11-16 Today hero reads "N cards"; Return and T are ignored while focus is on a button, link, field or listbox.
+- 2026-11-16 Study end waits for queued saves, then `refreshDecks` and `habitSettled()`, before showing Next or the done line. Without a limit the current deck is skipped as the next candidate (it was drained).
+- 2026-11-16 Fix: `habit.summary` marks today cleared only if something was reviewed today (an empty library had marked today kept, and `cleared` is sticky). Today's `planned` is a high-water mark (`MAX`), so cards imported later in the day count.
+- 2026-11-16 Perf: the forecast is two index-range queries per reminded deck (count ≤ today, then GROUP BY due_day for the next 30 days); one GROUP BY over `MAX(due_day - today, 0)` needed a temp B-tree over every due card.
+- 2026-11-16 SW `notificationclick`: a failed `client.focus()` (no activation) no longer stops the navigation.
+- 2026-11-16 `?perf` `queries()` also times `habit.summary`.

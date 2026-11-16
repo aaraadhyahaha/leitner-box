@@ -65,32 +65,39 @@ function secondsPerCard(db: Database): number {
 export function habitSummary(db: Database, today: number): HabitSummary {
   return db.transaction(() => {
     const forecast: DeckForecast[] = [];
-    const byId = new Map<number, DeckForecast>();
     for (const [id, name] of db.selectArrays(
       'SELECT id, name FROM decks WHERE remind = 1 ORDER BY name COLLATE NOCASE, id',
     )) {
       const f: DeckForecast = { deckId: Number(id), name: String(name), byDay: new Array(FORECAST_DAYS).fill(0) };
       forecast.push(f);
-      byId.set(f.deckId, f);
     }
     const totals: number[] = new Array(FORECAST_DAYS).fill(0);
-    for (const [deckId, offset, n] of db.selectArrays(
-      `SELECT c.deck_id, MAX(c.due_day - ?, 0), COUNT(*)
-         FROM cards c JOIN decks d ON d.id = c.deck_id
-        WHERE d.remind = 1 AND c.due_day <= ?
-        GROUP BY 1, 2`,
-      [today, today + FORECAST_DAYS - 1],
-    )) {
-      const f = byId.get(Number(deckId));
-      const i = Number(offset);
-      if (!f || i < 0 || i >= FORECAST_DAYS) continue;
-      f.byDay[i] += Number(n);
-      totals[i] += Number(n);
+    // Per deck: one index-range count for today incl. overdue, then the next 30 days grouped by
+    // day. Both stream on cards_deck_due; a single GROUP BY over MAX(due_day - today, 0) needs a
+    // temp B-tree over every due card (31 ms at 100k vs 4 ms).
+    const dueNow = db.prepare('SELECT COUNT(*) FROM cards WHERE deck_id = ? AND due_day <= ?');
+    const ahead = db.prepare(
+      'SELECT due_day, COUNT(*) FROM cards WHERE deck_id = ? AND due_day BETWEEN ? AND ? GROUP BY due_day',
+    );
+    try {
+      for (const f of forecast) {
+        dueNow.bind([f.deckId, today]).step();
+        f.byDay[0] = Number(dueNow.get(0));
+        dueNow.reset(true);
+        ahead.bind([f.deckId, today + 1, today + FORECAST_DAYS - 1]);
+        while (ahead.step()) f.byDay[Number(ahead.get(0)) - today] = Number(ahead.get(1));
+        ahead.reset(true);
+        for (let i = 0; i < FORECAST_DAYS; i++) totals[i] += f.byDay[i];
+      }
+    } finally {
+      dueNow.finalize();
+      ahead.finalize();
     }
 
+    // Nothing due: today is cleared only if something was reviewed (an empty day is a rest day).
     if (totals[0] === 0) {
       db.exec({
-        sql: 'INSERT INTO days(day, cleared) VALUES (?, 1) ON CONFLICT(day) DO UPDATE SET cleared = 1',
+        sql: 'UPDATE days SET cleared = 1 WHERE day = ? AND reviewed > 0',
         bind: [today],
       });
     }
@@ -107,7 +114,7 @@ export function habitSummary(db: Database, today: number): HabitSummary {
     }
     db.exec({
       sql: `INSERT INTO days(day, planned) VALUES (?, ?)
-            ON CONFLICT(day) DO UPDATE SET planned = COALESCE(planned, excluded.planned)`,
+            ON CONFLICT(day) DO UPDATE SET planned = MAX(COALESCE(planned, 0), excluded.planned)`,
       bind: [today, totals[0]],
     });
 
