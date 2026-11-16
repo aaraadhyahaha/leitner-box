@@ -8,7 +8,7 @@
   import ExportButton from './ExportButton.svelte';
   import CardEditorSheet from './CardEditorSheet.svelte';
   import DeckNameSheet from './DeckNameSheet.svelte';
-  import { Pencil, Plus, Trash2 } from '@lucide/svelte';
+  import { Bell, BellOff, Pencil, Plus, Trash2 } from '@lucide/svelte';
   import { call } from '../lib/db/client';
   import type { Box, Card, CardQuery } from '../lib/db/types';
   import { deckStore, refreshDecks } from '../lib/decks.svelte';
@@ -56,6 +56,21 @@
     if (!deck) return;
     renameTarget = { id: deck.id, name: deck.name };
     renameOpen = true;
+  }
+
+  let remindBusy = $state(false);
+
+  async function toggleRemind() {
+    if (!deck || remindBusy) return;
+    remindBusy = true;
+    try {
+      await call('deck.setRemind', { id: deck.id, remind: !deck.remind });
+      await refreshDecks();
+    } catch {
+      // The deck list still shows the stored value.
+    } finally {
+      remindBusy = false;
+    }
   }
 
   async function onCardSaved() {
@@ -238,6 +253,21 @@
       <Pencil size={16} strokeWidth={1.5} aria-hidden="true" />
     </button>
     <ExportButton {deckId} />
+    <button
+      type="button"
+      class="btn-icon"
+      aria-label="Remind Me Daily"
+      title="Remind Me Daily"
+      aria-pressed={deck.remind}
+      disabled={remindBusy}
+      onclick={toggleRemind}
+    >
+      {#if deck.remind}
+        <Bell size={16} strokeWidth={1.5} aria-hidden="true" />
+      {:else}
+        <BellOff size={16} strokeWidth={1.5} aria-hidden="true" />
+      {/if}
+    </button>
     <button
       type="button"
       class="btn-icon"

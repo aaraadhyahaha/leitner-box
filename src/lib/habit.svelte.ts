@@ -9,9 +9,24 @@ export const habitStore: { summary: HabitSummary | null; error: string | null } 
 });
 
 let seq = 0;
+let latest: Promise<void> = Promise.resolve();
 
-export async function refreshHabit(): Promise<void> {
-  const n = ++seq;
+/** Resolves once the most recently started refresh has finished. */
+export async function habitSettled(): Promise<void> {
+  let p: Promise<void>;
+  do {
+    p = latest;
+    await p;
+  } while (p !== latest);
+}
+
+export function refreshHabit(): Promise<void> {
+  const run = load(++seq);
+  latest = run;
+  return run;
+}
+
+async function load(n: number): Promise<void> {
   try {
     const s = await call('habit.summary', null);
     if (n !== seq) return;

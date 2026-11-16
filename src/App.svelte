@@ -49,8 +49,8 @@
     {:else if route.name === 'today'}
       <TodayView />
     {:else if route.name === 'study'}
-      {#key route.deckId}
-        <StudyView deckId={route.deckId} />
+      {#key `${route.deckId}:${route.limit ?? ''}`}
+        <StudyView deckId={route.deckId} limit={route.limit} />
       {/key}
     {:else}
       <Toolbar title="Leitner">

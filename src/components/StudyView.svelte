@@ -9,9 +9,11 @@
   import { review } from '../lib/leitner';
   import { go } from '../lib/router.svelte';
   import { deckStore, refreshDecks } from '../lib/decks.svelte';
+  import { habitSettled, habitStore } from '../lib/habit.svelte';
+  import { computeStreak } from '../lib/habit';
   import { count, fmt } from '../lib/format';
 
-  let { deckId }: { deckId: number } = $props();
+  let { deckId, limit }: { deckId: number; limit?: number } = $props();
 
   const PAGE = 20;
   const LOW_WATER = 5;
@@ -80,6 +82,8 @@
   let hasMore = $state(true);
   let initialDue = $state(0);
   let cursor: DueCursor | null = null;
+  /** Distinct cards fetched so far (capped by `limit`). */
+  let fetched = 0;
   let loadError = $state<string | null>(null);
   let saveError = $state<string | null>(null);
   let leaving = false;
@@ -120,6 +124,54 @@
     if (stats.down > 0) parts.push(`${fmt(stats.down)} back to Box 1`);
     return parts.length > 0 ? parts.join(' · ') : 'No cards changed boxes.';
   });
+
+  // ---- End of session: next reminded deck, or done for today ----
+
+  let endReady = $state(false);
+  let endChecked = false;
+
+  $effect(() => {
+    if (view !== 'done' || practice || endChecked) return;
+    endChecked = true;
+    void (async () => {
+      // Let queued saves land first so the counts include this session.
+      try {
+        await pendingUndo;
+        await lastSave;
+      } catch {
+        // A failed save is already reported.
+      }
+      try {
+        await refreshDecks();
+        await habitSettled();
+      } finally {
+        endReady = true;
+      }
+    })();
+  });
+
+  /** The reminded deck with the most due. Without a limit this deck was drained, so it's skipped. */
+  const nextDeck = $derived.by(() => {
+    if (!endReady) return null;
+    let best: { id: number; name: string; due: number } | null = null;
+    for (const d of deckStore.decks) {
+      if (!d.remind || d.due === 0) continue;
+      if (d.id === deckId && limit === undefined) continue;
+      if (!best || d.due > best.due) best = d;
+    }
+    return best;
+  });
+
+  const doneLine = $derived.by(() => {
+    const s = habitStore.summary;
+    const streak = s ? computeStreak(s.days, s.today).length : 0;
+    return streak >= 2 ? `That’s today done · ${fmt(streak)}-day streak` : 'That’s today done.';
+  });
+
+  function studyNext(): void {
+    if (!nextDeck) return;
+    go({ name: 'study', deckId: nextDeck.id });
+  }
 
   /** A damped spring sampled into a CSS linear() easing; null where linear() is unsupported. */
   function springEasing(zeta = 0.8, settle = 6, steps = 40): string | null {
@@ -236,8 +288,10 @@
   async function fetchPage(): Promise<void> {
     fetching = true;
     try {
-      const cards = await call('study.due', { deckId, after: cursor, limit: PAGE });
-      hasMore = cards.length === PAGE;
+      const want = limit === undefined ? PAGE : Math.min(PAGE, limit - fetched);
+      const cards = want > 0 ? await call('study.due', { deckId, after: cursor, limit: want }) : [];
+      fetched += cards.length;
+      hasMore = want > 0 && cards.length === want && (limit === undefined || fetched < limit);
       const last = cards[cards.length - 1];
       if (last) cursor = { dueDay: last.dueDay, id: last.id };
       session.push(cards);
@@ -513,7 +567,8 @@
   }
 
   onMount(() => {
-    initialDue = deckStore.decks.find((d) => d.id === deckId)?.due ?? 0;
+    const due = deckStore.decks.find((d) => d.id === deckId)?.due ?? 0;
+    initialDue = limit === undefined ? due : Math.min(due, limit);
     void fetchPage();
   });
 
@@ -649,9 +704,24 @@
                       </div>
                     </div>
                     <p class="moves">{movesLine}</p>
+                    {#if !practice && endReady}
+                      {#if nextDeck}
+                        {@const nextLabel = `${nextDeck.id === deckId ? 'Keep Going' : `Next: ${nextDeck.name}`} · ${fmt(nextDeck.due)} due`}
+                        <button type="button" class="btn btn-primary next-btn" title={nextLabel} onclick={studyNext}>
+                          {nextLabel}
+                        </button>
+                      {:else}
+                        <p class="moves">{doneLine}</p>
+                      {/if}
+                    {/if}
                     <div class="summary-actions">
                       <button type="button" class="btn" onclick={() => void exit()}>Done</button>
-                      <button type="button" class="btn btn-primary" onclick={studyAgain}>
+                      <button
+                        type="button"
+                        class="btn"
+                        class:btn-primary={practice || (endReady && !nextDeck)}
+                        onclick={studyAgain}
+                      >
                         Study Again
                       </button>
                     </div>
@@ -1142,6 +1212,12 @@
   .summary-actions {
     display: flex;
     gap: var(--s2);
+  }
+
+  .next-btn {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   /* ---- Controls ---- */
