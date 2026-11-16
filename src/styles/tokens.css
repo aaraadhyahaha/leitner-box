@@ -116,6 +116,16 @@
   --dur-fast: 120ms;
   --dur-sheet: 220ms;
   --ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* 7.13 Rhythm grid */
+  --rhythm-cell: 12px;
+  --rhythm-gap: 4px;
+  --rhythm-radius: 3px;
+  --rhythm-0: var(--fill-hover);
+  --rhythm-1: color-mix(in srgb, var(--accent) 25%, transparent);
+  --rhythm-2: color-mix(in srgb, var(--accent) 50%, transparent);
+  --rhythm-3: color-mix(in srgb, var(--accent) 75%, transparent);
+  --rhythm-4: var(--accent);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -158,6 +168,8 @@
     --separator: rgba(0, 0, 0, 0.40);
     --control-border: rgba(0, 0, 0, 0.40);
     --focus-ring: var(--accent);
+    --rhythm-0: var(--fill-selected);
+    --rhythm-1: color-mix(in srgb, var(--accent) 40%, transparent);
   }
 }
 
@@ -169,6 +181,8 @@
     --separator: rgba(255, 255, 255, 0.40);
     --control-border: rgba(255, 255, 255, 0.40);
     --focus-ring: var(--accent);
+    --rhythm-0: var(--fill-selected);
+    --rhythm-1: color-mix(in srgb, var(--accent) 40%, transparent);
   }
 }
 

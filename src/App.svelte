@@ -7,14 +7,26 @@
   import StudyView from './components/StudyView.svelte';
   import ImportsView from './components/ImportsView.svelte';
   import Notices from './components/Notices.svelte';
+  import TodayView from './components/TodayView.svelte';
   import { deckStore, refreshDecks } from './lib/decks.svelte';
-  import { router } from './lib/router.svelte';
+  import { startHabit } from './lib/habit.svelte';
+  import { loadReminders } from './lib/reminders/reminders.svelte';
+  import { router, go } from './lib/router.svelte';
 
   $effect(() => {
+    startHabit();
+    void loadReminders();
     void refreshDecks();
   });
 
   const route = $derived(router.route);
+
+  // Home redirects to Today once there are decks (replacing the entry, so Back doesn't loop).
+  $effect(() => {
+    if (route.name === 'home' && deckStore.loaded && !deckStore.error && deckStore.decks.length > 0) {
+      go({ name: 'today' }, { replace: true });
+    }
+  });
 </script>
 
 <div class="window">
@@ -34,6 +46,8 @@
       {/key}
     {:else if route.name === 'imports'}
       <ImportsView />
+    {:else if route.name === 'today'}
+      <TodayView />
     {:else if route.name === 'study'}
       {#key route.deckId}
         <StudyView deckId={route.deckId} />

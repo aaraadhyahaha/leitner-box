@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { History, Plus } from '@lucide/svelte';
+  import { CalendarDays, History, Plus } from '@lucide/svelte';
   import DeckNameSheet from './DeckNameSheet.svelte';
   import { deckStore } from '../lib/decks.svelte';
   import { router, go } from '../lib/router.svelte';
@@ -22,6 +22,8 @@
   );
 
   const importsSelected = $derived(router.route.name === 'imports');
+  const todaySelected = $derived(router.route.name === 'today');
+  const todayDue = $derived(decks.reduce((n, d) => n + (d.remind ? d.due : 0), 0));
 
   let listEl: HTMLElement | undefined = $state();
   let newDeckOpen = $state(false);
@@ -68,6 +70,19 @@
 </script>
 
 <nav class="sidebar" aria-label="Decks">
+  <button
+    type="button"
+    class="sidebar-row sidebar-button sidebar-today"
+    class:selected={todaySelected}
+    aria-current={todaySelected ? 'page' : undefined}
+    onclick={() => go({ name: 'today' })}
+  >
+    <CalendarDays size={16} strokeWidth={1.5} aria-hidden="true" />
+    <span class="sidebar-name">Today</span>
+    {#if todayDue > 0}
+      <span class="sidebar-badge" aria-label="{fmt(todayDue)} due">{fmt(todayDue)}</span>
+    {/if}
+  </button>
   <div class="sidebar-header-row">
     <h2 class="sidebar-header" id="sidebar-decks-header">Decks</h2>
     <button
@@ -164,6 +179,10 @@
 
   .sidebar-section {
     margin-top: var(--s4);
+  }
+
+  .sidebar-today {
+    margin-bottom: var(--s2);
   }
 
   .sidebar-button {
