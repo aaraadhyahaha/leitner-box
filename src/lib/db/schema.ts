@@ -44,3 +44,18 @@ CREATE TRIGGER cards_au AFTER UPDATE OF front, back, tags ON cards BEGIN
 END;
 PRAGMA user_version = 1;
 `;
+
+export const SCHEMA_V2 = `
+ALTER TABLE decks ADD COLUMN remind INTEGER NOT NULL DEFAULT 1;
+CREATE TABLE days(
+  day INTEGER PRIMARY KEY,
+  reviewed INTEGER NOT NULL DEFAULT 0,
+  cleared INTEGER NOT NULL DEFAULT 0,
+  planned INTEGER);
+CREATE INDEX reviews_time ON reviews(reviewed_at);
+PRAGMA user_version = 2;
+`;
+
+/** Bind `[tzOffsetMin]`. Every past day with reviews counts as cleared. */
+export const BACKFILL_DAYS =
+  'INSERT INTO days(day, reviewed, cleared) SELECT (reviewed_at - ? * 60000) / 86400000, COUNT(*), 1 FROM reviews GROUP BY 1';

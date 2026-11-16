@@ -6,6 +6,7 @@ import {
   countCards, createCard, createDeck, deleteBatch, deleteCards, deleteDeck, exportJsonl,
   listBatches, listCards, renameDeck, undoReview, updateCard,
 } from './card-ops';
+import { habitSummary, setRemind } from './habit-ops';
 import type { Api, Op, WireRequest, WireResponse } from './types';
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
@@ -51,6 +52,11 @@ const handlers: Handlers = {
   'batch.delete': (db, args) => ({ deleted: deleteBatch(db, args.id) }),
   'study.undo': (db, args) => undoReview(db, args.reviewId),
   'export.jsonl': (db, args) => exportJsonl(db, args.deckId),
+  'deck.setRemind': (db, args) => {
+    setRemind(db, args.id, args.remind);
+    return null;
+  },
+  'habit.summary': (db) => habitSummary(db, today()),
 };
 
 const dbReady = init();

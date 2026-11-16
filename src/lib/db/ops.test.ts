@@ -39,7 +39,7 @@ const count = (sql: string) => Number(db.selectValue(sql));
 describe('migrate', () => {
   it('is safe to run twice', () => {
     expect(() => migrate(db)).not.toThrow();
-    expect(count('PRAGMA user_version')).toBe(1);
+    expect(count('PRAGMA user_version')).toBe(2);
     expect(count('SELECT COUNT(*) FROM decks')).toBe(0);
   });
 });

@@ -2,6 +2,8 @@ import type { Database, SqlValue } from '@sqlite.org/sqlite-wasm';
 import { cardHash, validateCard } from '../import-parse';
 import { CARD_COLS, num, splitTags, toCard } from './ops';
 import { ftsQuery } from './fts';
+import { recordUndo } from './habit-ops';
+import { dayNumber } from '../leitner';
 import type {
   BatchSummary, Card, CardInput, CardPage, CardQuery, CardSelection, DueCursor,
 } from './types';
@@ -186,9 +188,13 @@ export function deleteBatch(db: Database, id: number): number {
   });
 }
 
-export function undoReview(db: Database, reviewId: number): Card {
+export function undoReview(
+  db: Database, reviewId: number, tzOffsetMin = new Date().getTimezoneOffset(),
+): Card {
   return db.transaction(() => {
-    const row = db.selectArrays('SELECT card_id, prev_box, prev_due_day FROM reviews WHERE id = ?', [reviewId])[0];
+    const row = db.selectArrays(
+      'SELECT card_id, prev_box, prev_due_day, reviewed_at FROM reviews WHERE id = ?', [reviewId],
+    )[0];
     if (!row) throw new Error('Review not found');
     const cardId = num(row[0]);
     if (db.selectValue('SELECT 1 FROM reviews WHERE card_id = ? AND id > ?', [cardId, reviewId]) !== undefined) {
@@ -199,6 +205,7 @@ export function undoReview(db: Database, reviewId: number): Card {
       bind: [num(row[1]), num(row[2]), cardId],
     });
     db.exec({ sql: 'DELETE FROM reviews WHERE id = ?', bind: [reviewId] });
+    recordUndo(db, num(row[3]), dayNumber(Date.now(), tzOffsetMin), tzOffsetMin);
     return getCard(db, cardId);
   });
 }

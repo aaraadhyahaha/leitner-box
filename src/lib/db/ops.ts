@@ -1,7 +1,8 @@
 import type { Database, PreparedStatement, SqlValue } from '@sqlite.org/sqlite-wasm';
 import { review } from '../leitner';
 import { cardHash, type ParsedLine } from '../import-parse';
-import { SCHEMA_V1 } from './schema';
+import { BACKFILL_DAYS, SCHEMA_V1, SCHEMA_V2 } from './schema';
+import { recordAnswer } from './habit-ops';
 import type {
   AnswerResult, Box, Card, DeckSummary, DueCursor, ImportError, ImportResult, ImportSample,
 } from './types';
@@ -35,19 +36,20 @@ export function toCard(row: SqlValue[]): Card {
   };
 }
 
-export function migrate(db: Database): void {
+export function migrate(db: Database, tzOffsetMin = new Date().getTimezoneOffset()): void {
   db.exec('PRAGMA foreign_keys = ON');
   const version = num(db.selectValue('PRAGMA user_version'));
-  if (version === 0) {
-    db.transaction(() => {
-      db.exec(SCHEMA_V1);
-    });
-  }
+  if (version >= 2) return;
+  db.transaction(() => {
+    if (version === 0) db.exec(SCHEMA_V1);
+    db.exec(SCHEMA_V2);
+    db.exec({ sql: BACKFILL_DAYS, bind: [tzOffsetMin] });
+  });
 }
 
 export function listDecks(db: Database, today: number): DeckSummary[] {
   const rows = db.selectArrays(
-    `SELECT d.id, d.name, c.box, COUNT(c.id), SUM(c.due_day <= ?)
+    `SELECT d.id, d.name, c.box, COUNT(c.id), SUM(c.due_day <= ?), d.remind
        FROM decks d LEFT JOIN cards c ON c.deck_id = d.id
       GROUP BY d.id, c.box
       ORDER BY d.name COLLATE NOCASE, d.id`,
@@ -55,10 +57,10 @@ export function listDecks(db: Database, today: number): DeckSummary[] {
   );
   const out: DeckSummary[] = [];
   let cur: DeckSummary | null = null;
-  for (const [id, name, box, count, due] of rows) {
+  for (const [id, name, box, count, due, remind] of rows) {
     const deckId = num(id);
     if (!cur || cur.id !== deckId) {
-      cur = { id: deckId, name: String(name), total: 0, due: 0, boxes: [0, 0, 0, 0, 0] };
+      cur = { id: deckId, name: String(name), total: 0, due: 0, boxes: [0, 0, 0, 0, 0], remind: num(remind) === 1 };
       out.push(cur);
     }
     if (box === null) continue;
@@ -204,6 +206,7 @@ export function answerCard(
       bind: [cardId, now, correct ? 1 : 0, prevBox, prevDue, next.box, next.dueDay],
     });
     const reviewId = num(db.selectValue('SELECT last_insert_rowid()'));
+    recordAnswer(db, today);
     return { reviewId, box: next.box, dueDay: next.dueDay };
   });
 }

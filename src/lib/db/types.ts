@@ -3,6 +3,7 @@ export type Box = 1 | 2 | 3 | 4 | 5;
 export interface DeckSummary {
   id: number; name: string; total: number; due: number;
   boxes: [number, number, number, number, number]; // count in box 1..5
+  remind: boolean;
 }
 export interface Card {
   id: number; deckId: number; batchId: number | null;
@@ -30,6 +31,14 @@ export interface BatchSummary {
   cardCount: number;                   // cards still alive
   deckCount: number; deckName: string; // deckName is the alphabetically first deck
 }
+export interface DayRecord { day: number; reviewed: number; cleared: boolean; planned: number | null }
+export interface DeckForecast { deckId: number; name: string; byDay: number[] } // length 31; [0] = due today incl. overdue, [i] = due_day == today+i
+export interface HabitSummary {
+  today: number;
+  days: DayRecord[];        // rows with today-365 <= day <= today, ascending
+  secondsPerCard: number;
+  forecast: DeckForecast[]; // every reminded deck (also those with nothing due), by name NOCASE
+}
 
 export interface Api {
   'deck.list':    { req: null; res: DeckSummary[] };
@@ -48,6 +57,8 @@ export interface Api {
   'batch.delete': { req: { id: number }; res: { deleted: number } };
   'study.undo':   { req: { reviewId: number }; res: Card };
   'export.jsonl': { req: { deckId: number | null }; res: Blob };
+  'deck.setRemind': { req: { id: number; remind: boolean }; res: null };
+  'habit.summary':  { req: null; res: HabitSummary };
 }
 export type Op = keyof Api;
 export interface WireRequest { id: number; op: Op; args: unknown }
